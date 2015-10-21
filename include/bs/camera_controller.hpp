@@ -381,6 +381,9 @@ class CameraController
 
 
 public:
+	/*!
+	@note Change the name of parameter file path written below
+	*/
 	CameraController() :
 		file_param_("./cam_param.xml"), stereo_(false)
 	{
@@ -595,6 +598,9 @@ public:
 		BOTH
 	};
 
+	/*!
+	@note Change the name of parameter file path written below
+	*/
 	StereoCameraController() :
 		file_param_("./stereo_cam_param.xml")
 	{
