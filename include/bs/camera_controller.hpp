@@ -303,6 +303,11 @@ bool loadStereoCameraParameter(const cv::FileStorage& fs, CameraParams& param_l,
 	return true;
 }
 
+bool loadStereoCameraParameter(const cv::FileStorage& fs, Stereo<CameraParams>& param)
+{
+	return loadStereoCameraParameter(fs, param[0], param[1]);
+}
+
 bool saveCameraParameter(cv::FileStorage& fs, const CameraParams& param)
 {
 	saveCameraParameterBase(fs, param);
@@ -318,6 +323,13 @@ bool saveStereoCameraParameter(cv::FileStorage& fs, const CameraParams& param_l,
 	fs << "right" << "{";
 	saveCameraParameterBase(fs, param_r);
 	fs << "}";
+
+	return true;
+}
+
+bool saveStereoCameraParameter(cv::FileStorage& fs, const Stereo<CameraParams>& param)
+{
+	saveStereoCameraParameter(fs, param[0], param[1]);
 
 	return true;
 }
@@ -369,13 +381,11 @@ class CameraController
 
 
 public:
-	CameraController() {}
-
-	CameraController(const bool read_from_file, const std::string file_param = "D:/projectAir3/BM_calibration/cam_param.xml") :
-		file_param_(file_param), stereo_(false)
+	CameraController() :
+		file_param_("./cam_param.xml"), stereo_(false)
 	{
-		cv::FileStorage fs(file_param, cv::FileStorage::READ);
-		CV_Assert(fs.isOpened());
+		cv::FileStorage fs(file_param_, cv::FileStorage::READ);
+		CV_Assert(fs.isOpened() || !"Cannot open file in bs::CameraController constructor.");
 
 		bool complete = loadCameraParameter(fs, param_);
 		assert(complete || !"in CameraController constructor from file.");
@@ -435,11 +445,11 @@ public:
 			std::cout << "[Camera Controller] Success restart." << std::endl;
 	}
 
-	void loadProp(std::string file_param = "")
+	void loadProp(cv::FileStorage& fs = cv::FileStorage())
 	{
-		file_param = file_param.empty() ? file_param_ : file_param;
-		cv::FileStorage fs(file_param, cv::FileStorage::READ);
-		CV_Assert(fs.isOpened());
+		if (!fs.isOpened())
+			fs.open(file_param_, cv::FileStorage::READ);
+		CV_Assert(fs.isOpened() || !"in loadProp.");
 
 		if (!loadCameraParameter(fs, param_))
 			return;
@@ -585,13 +595,11 @@ public:
 		BOTH
 	};
 
-	StereoCameraController(){}
-
-	StereoCameraController(const bool read_from_file, const std::string file_param = "D:/projectAir3/BM_calibration/scam_param.xml") :
-		file_param_(file_param)
+	StereoCameraController() :
+		file_param_("./stereo_cam_param.xml")
 	{
-		cv::FileStorage fs(file_param, cv::FileStorage::READ);
-		CV_Assert(fs.isOpened());
+		cv::FileStorage fs(file_param_, cv::FileStorage::READ);
+		CV_Assert(fs.isOpened() || !"Cannot open file in bs::StereoCameraController constructor.");
 
 		loadStereoCameraParameter(fs, param_l_, param_r_);
 		cam_left_ = *(new CameraController(param_l_, true));
@@ -639,19 +647,19 @@ public:
 		return;
 	}
 
-	void loadProp(std::string file_param = "")
+	void loadProp(cv::FileStorage fs = cv::FileStorage())
 	{
-		file_param = file_param.empty() ? file_param_ : file_param;
-		cv::FileStorage fs(file_param, cv::FileStorage::READ);
+		if (!fs.isOpened())
+			fs.open(file_param_, cv::FileStorage::READ);
 		CV_Assert(fs.isOpened());
 
 		if (!loadStereoCameraParameter(fs, param_l_, param_r_))
 			return;
 
-		Stereo<float> shutter, gain;
-		const float fps = param_l_.fps;
+		Stereo<float> shutter, gain, fps;
 		shutter = { { param_l_.shutter, param_r_.shutter } };
 		gain = { { param_l_.gain, param_r_.gain } };
+		fps = { { param_l_.fps, param_r_.fps } };
 		setProp(shutter, gain, fps);
 		return;
 	}
@@ -667,10 +675,10 @@ public:
 		return CameraParams();
 	}
 
-	void setProp(const Stereo<float> shutter, const Stereo<float> gain, const float fps)
+	void setProp(const Stereo<float> shutter, const Stereo<float> gain, const Stereo<float> fps)
 	{
-		cam_left_.setProp(shutter[0], gain[0], fps);
-		cam_right_.setProp(shutter[1], gain[1], fps);
+		cam_left_.setProp(shutter[0], gain[0], fps[0]);
+		cam_right_.setProp(shutter[1], gain[1], fps[1]);
 		return;
 	}
 
@@ -735,14 +743,17 @@ public:
 	/*!
 	@note Support only left_size == right_size
 	*/
-	cv::Size setViewSize(const int width)
+	Stereo<cv::Size> setViewSize(const int width)
 	{
-		if (param_l_.size != param_r_.size)
-			return cv::Size();
-		CV_Assert(0 < param_l_.size.area());
-
+		CV_Assert(0 < param_l_.size.area() && 0 < param_r_.size.area());
+		
+		Stereo<cv::Size> output;
 		int height = (param_l_.size.height * width) / param_l_.size.width;
-		return cv::Size(width, height);
+		output[0] = cv::Size(width, height);
+		height = (param_r_.size.height * width) / param_r_.size.width;
+		output[1] = cv::Size(width, height);
+
+		return output;
 	}
 };
 
