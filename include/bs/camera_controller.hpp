@@ -240,20 +240,21 @@ struct CameraParams
 	fc::PixFmt pixel_format;
 	cv::Size size;
 	float shutter, gain, fps;
+	int channels;
 
 	CameraParams() :
 		serial(0), pixel_format(FLYCAPTURE_MONO8), size(cv::Size(0, 0)),
-		shutter(-1.f), gain(-1.f), fps(-1.f)
+		shutter(-1.f), gain(-1.f), fps(-1.f), channels(1)
 	{}
 
 	CameraParams(
 		const fc::CamSerial _serial, const fc::PixFmt _fmt, const cv::Size _sz,
 		const float _shutter, const float _gain, const float _fps) :
-		serial(_serial), pixel_format(_fmt), size(_sz), shutter(_shutter), gain(_gain), fps(_fps)
+		serial(_serial), pixel_format(_fmt), size(_sz), shutter(_shutter), gain(_gain), fps(_fps), channels(1)
 	{}
 
 	CameraParams(const fc::CamSerial _serial, const fc::PixFmt _fmt, const cv::Size _sz) :
-		serial(_serial), pixel_format(_fmt), size(_sz), shutter(-1.f), gain(-1.f), fps(-1.f)
+		serial(_serial), pixel_format(_fmt), size(_sz), shutter(-1.f), gain(-1.f), fps(-1.f), channels(1)
 	{}
 };
 
@@ -265,6 +266,7 @@ inline void loadCameraParameterBase(cv::FileNode& fn, bs::CameraParams& param)
 
 	fn["serial"]	>> tmp_serial;	param.serial = tmp_serial;
 	fn["format"]	>> tmp_format;	param.pixel_format = fc::int2PixFmt(tmp_format);
+	fn["channels"]	>> param.channels;
 	fn["size"]		>> param.size;
 	fn["shutter"]	>> param.shutter;
 	fn["gain"]		>> param.gain;
@@ -274,12 +276,13 @@ inline void loadCameraParameterBase(cv::FileNode& fn, bs::CameraParams& param)
 
 inline void saveCameraParameterBase(cv::FileStorage& fs, const bs::CameraParams& param)
 {
-	fs << "serial"	<< (int)param.serial;
-	fs << "format"	<< (int)param.pixel_format;
-	fs << "size"	<< param.size;
-	fs << "shutter"	<< param.shutter;
-	fs << "gain"	<< param.gain;
-	fs << "fps"		<< param.fps;
+	fs << "serial"		<< (int)param.serial;
+	fs << "format"		<< (int)param.pixel_format;
+	fs << "channels"	<< param.channels;
+	fs << "size"		<< param.size;
+	fs << "shutter"		<< param.shutter;
+	fs << "gain"		<< param.gain;
+	fs << "fps"			<< param.fps;
 	return;
 }
 
@@ -375,6 +378,28 @@ class CameraController
 		fc::fcAssert(err, "fc::startCustomImage");
 
 		setProp(param_.shutter, param_.gain, param_.fps);
+
+		switch (param_.pixel_format)
+		{
+		default:
+			param_.channels = -1;
+			std::cout
+				<< "[Camera Controller] Cannot set image channels." << std::endl
+				<< "                    Support only FLYCAPTURE_MONO8, FLYCAPTURE_RGB8 and 3 YUV formats." << std::endl
+				<< "                    Use that format or set channels by function CameraController::setImageChannels." << std::endl;
+			break;
+
+		case FLYCAPTURE_MONO8:
+			param_.channels = 1;
+			break;
+
+		case FLYCAPTURE_RGB8:
+		case FLYCAPTURE_411YUV8:
+		case FLYCAPTURE_422YUV8:
+		case FLYCAPTURE_444YUV8:
+			param_.channels = 3;
+			break;
+		}
 
 		return;
 	}
@@ -527,19 +552,33 @@ public:
 		return;
 	}
 
+	void setImageChannels(int cn)
+	{
+		param_.channels = cn;
+
+		if (param_.channels != 1 && param_.channels != 3)
+		{
+			std::cout << "[Camera Controller] Support only channels = 1(gray scale) or 3(color), sorry." << std::endl;
+			abort();
+		}
+
+		return;
+	}
+
 	void operator >> (cv::Mat& im)
 	{
+		assert(param_.channels == 1 || param_.channels == 3);
 		fc::Image fc_im, im_conv;
 		unsigned char *buffer;
+		int type = (param_.channels == 1) ? CV_8U : (CV_8UC3);
 
 		fc::Error err = fc::grabImage2(fly_, &fc_im);
 		fc::fcAssert(err, "fc::grabImage2");
 
-		buffer = new unsigned char[fc_im.iRows * fc_im.iCols];
-		im_conv.pData = buffer;
+		im = cv::Mat(im_conv.iRows, im_conv.iCols, type);
+		im_conv.pData = (uchar*)im.data;
 		im_conv.pixelFormat = param_.pixel_format;
 		fc::cvtImage(fly_, &fc_im, &im_conv);
-		im = cv::Mat(im_conv.iRows, im_conv.iCols, CV_8U);
 		memcpy(im.data, im_conv.pData, im_conv.iRows * im_conv.iRowInc);
 		delete[]buffer;
 
