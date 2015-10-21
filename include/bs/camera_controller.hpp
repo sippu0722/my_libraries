@@ -287,50 +287,30 @@ inline void saveCameraParameterBase(cv::FileStorage& fs, const bs::CameraParams&
 namespace bs
 {
 
-bool loadCameraParameter(const cv::String file, CameraParams& param)
+bool loadCameraParameter(const cv::FileStorage& fs, CameraParams& param)
 {
-	cv::FileStorage fs(file, cv::FileStorage::READ);
-
-	if (!fs.isOpened())
-		return false;
-
 	cv::FileNode fn(fs.fs, nullptr);
 	loadCameraParameterBase(fn, param);
 
 	return true;
 }
 
-bool loadStereoCameraParameter(const cv::String file, CameraParams& param_l, CameraParams& param_r)
+bool loadStereoCameraParameter(const cv::FileStorage& fs, CameraParams& param_l, CameraParams& param_r)
 {
-	cv::FileStorage fs(file, cv::FileStorage::READ);
-
-	if (!fs.isOpened())
-		return false;
-
 	loadCameraParameterBase(fs["left"], param_l);
 	loadCameraParameterBase(fs["right"], param_r);
 
 	return true;
 }
 
-bool saveCameraParameter(const cv::String file, const CameraParams& param)
+bool saveCameraParameter(cv::FileStorage& fs, const CameraParams& param)
 {
-	cv::FileStorage fs(file, cv::FileStorage::WRITE);
-
-	if (!fs.isOpened())
-		return false;
-
 	saveCameraParameterBase(fs, param);
 	return true;
 }
 
-bool saveStereoCameraParameter(const cv::String file, const CameraParams& param_l, const CameraParams& param_r)
+bool saveStereoCameraParameter(cv::FileStorage& fs, const CameraParams& param_l, const CameraParams& param_r)
 {
-	cv::FileStorage fs(file, cv::FileStorage::WRITE);
-
-	if (!fs.isOpened())
-		return false;
-
 	fs << "left" << "{";
 	saveCameraParameterBase(fs, param_l);
 	fs << "}";
@@ -394,7 +374,10 @@ public:
 	CameraController(const bool read_from_file, const std::string file_param = "D:/projectAir3/BM_calibration/cam_param.xml") :
 		file_param_(file_param), stereo_(false)
 	{
-		bool complete = loadCameraParameter(file_param, param_);
+		cv::FileStorage fs(file_param, cv::FileStorage::READ);
+		CV_Assert(fs.isOpened());
+
+		bool complete = loadCameraParameter(fs, param_);
 		assert(complete || !"in CameraController constructor from file.");
 		init();
 
@@ -428,10 +411,13 @@ public:
 		{
 			if (!file_param_.empty())
 			{
-				bool complete = saveCameraParameter(file_param_, param_);
+				cv::FileStorage fs(file_param_, cv::FileStorage::WRITE);
+				CV_Assert(fs.isOpened());
+
+				bool complete = saveCameraParameter(fs, param_);
 				assert(complete || !"saveCameraParameter");
 			}
-			std::cout << "[Camera Controller] Bye|| !" << std::endl;
+			std::cout << "[Camera Controller] Bye!" << std::endl;
 		}
 	}
 
@@ -452,8 +438,10 @@ public:
 	void loadProp(std::string file_param = "")
 	{
 		file_param = file_param.empty() ? file_param_ : file_param;
+		cv::FileStorage fs(file_param, cv::FileStorage::READ);
+		CV_Assert(fs.isOpened());
 
-		if (!loadCameraParameter(file_param, param_))
+		if (!loadCameraParameter(fs, param_))
 			return;
 		setProp(param_.shutter, param_.gain, param_.fps);
 
@@ -548,8 +536,8 @@ public:
 			restart();
 			*this >> im;
 		}
-		if (!stereo_)
-			std::cout << "[Camera Controller] Success capture." << std::endl;
+		//if (!stereo_)
+		//	std::cout << "[Camera Controller] Success capture." << std::endl;
 	}
 
 	cv::Size setViewSize(const int width)
@@ -602,9 +590,13 @@ public:
 	StereoCameraController(const bool read_from_file, const std::string file_param = "D:/projectAir3/BM_calibration/scam_param.xml") :
 		file_param_(file_param)
 	{
-		loadStereoCameraParameter(file_param, param_l_, param_r_);
+		cv::FileStorage fs(file_param, cv::FileStorage::READ);
+		CV_Assert(fs.isOpened());
+
+		loadStereoCameraParameter(fs, param_l_, param_r_);
 		cam_left_ = *(new CameraController(param_l_, true));
 		cam_right_ = *(new CameraController(param_r_, true));
+		std::cout << "[Stereo Camera Controller] Success initialize from file." << std::endl;
 	}
 
 	StereoCameraController(const CameraParams& param_l, const CameraParams& param_r) :
@@ -627,6 +619,15 @@ public:
 
 	~StereoCameraController()
 	{
+		if (!file_param_.empty())
+		{
+			cv::FileStorage fs(file_param_, cv::FileStorage::WRITE);
+			CV_Assert(fs.isOpened());
+
+			bool complete = saveStereoCameraParameter(fs, param_l_, param_r_);
+			assert(complete || !"saveStereoCameraParameter");
+		}
+		std::cout << "[Stereo Camera Controller] Bye!" << std::endl;
 	}
 
 	void restart(const Stereo<fc::CamSerial> serial, const cv::Size size, const fc::PixFmt fmt = FLYCAPTURE_MONO8)
@@ -641,8 +642,10 @@ public:
 	void loadProp(std::string file_param = "")
 	{
 		file_param = file_param.empty() ? file_param_ : file_param;
+		cv::FileStorage fs(file_param, cv::FileStorage::READ);
+		CV_Assert(fs.isOpened());
 
-		if (!loadStereoCameraParameter(file_param, param_l_, param_r_))
+		if (!loadStereoCameraParameter(fs, param_l_, param_r_))
 			return;
 
 		Stereo<float> shutter, gain;
@@ -699,34 +702,34 @@ public:
 	{
 		assert(select == (LEFT | RIGHT) || !"in StereCameraController capture");
 
-		std::cout << "[Stereo Camera Controller] Capture. ";
+		//std::cout << "[Stereo Camera Controller] Capture. ";
 
 		switch (select)
 		{
 		case StereoCameraController::LEFT:
-			std::cout << "left..";
+			//std::cout << "left..";
 			cam_left_ >> im;
 			break;
 
 		case StereoCameraController::RIGHT:
-			std::cout << "right..";
+			//std::cout << "right..";
 			cam_right_ >> im;
 			break;
 
 		default:
 			break;
 		}
-		std::cout << "success." << std::endl;
+		//std::cout << "success." << std::endl;
 	}
 
 	void operator >> (Stereo<cv::Mat>& im)
 	{
-		std::cout << "[Stereo Camera Controller] Capture. left..";
+		//std::cout << "[Stereo Camera Controller] Capture. left..";
 		cam_left_ >> im[0];
 
-		std::cout << "right..";
+		//std::cout << "right..";
 		cam_right_ >> im[1];
-		std::cout << "success." << std::endl;
+		//std::cout << "success." << std::endl;
 	}
 
 	/*!
