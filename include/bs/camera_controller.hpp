@@ -17,6 +17,15 @@ template<class T>
 using Stereo = std::array<T, 2>;
 #endif
 
+// Change these values in your environment.
+namespace bs
+{
+	namespace param
+	{
+		std::string gl_file_cam_param = "__output/cam_param.xml";
+		std::string gl_file_stereo_cam_param = "__output/stereo_cam_param.xml";
+	}
+}
 
 /*!
 Flycapture wrapper
@@ -31,75 +40,7 @@ using PixFmt = FlyCapturePixelFormat;
 using Property = FlyCaptureProperty;
 using Image = FlyCaptureImage;
 
-inline PixFmt int2PixFmt(const int i)
-{
-	PixFmt fmt;
-	
-	switch (i)
-	{
-	default:
-		break;
-
-	case fc::PixFmt::FCPF_FORCE_QUADLET:
-		fmt = fc::PixFmt::FCPF_FORCE_QUADLET;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_411YUV8:
-		fmt = fc::PixFmt::FLYCAPTURE_411YUV8;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_422YUV8:
-		fmt = fc::PixFmt::FLYCAPTURE_422YUV8;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_444YUV8:
-		fmt = fc::PixFmt::FLYCAPTURE_444YUV8;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_BGR:
-		fmt = fc::PixFmt::FLYCAPTURE_BGR;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_BGRU:
-		fmt = fc::PixFmt::FLYCAPTURE_BGRU;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_MONO16:
-		fmt = fc::PixFmt::FLYCAPTURE_MONO16;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_MONO8:
-		fmt = fc::PixFmt::FLYCAPTURE_MONO8;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_RAW16:
-		fmt = fc::PixFmt::FLYCAPTURE_RAW16;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_RAW8:
-		fmt = fc::PixFmt::FLYCAPTURE_RAW8;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_RGB16:
-		fmt = fc::PixFmt::FLYCAPTURE_RGB16;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_RGB8:
-		fmt = fc::PixFmt::FLYCAPTURE_RGB8;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_S_MONO16:
-		fmt = fc::PixFmt::FLYCAPTURE_S_MONO16;
-		break;
-
-	case fc::PixFmt::FLYCAPTURE_S_RGB16:
-		fmt = fc::PixFmt::FLYCAPTURE_S_RGB16;
-		break;
-	}
-	return fmt;
-}
-
-inline void fcAssert(const fc::Error error, const std::string name)
+inline void Assert(const fc::Error error, const std::string name)
 {
 	if (error != FLYCAPTURE_OK)
 	{
@@ -234,6 +175,13 @@ inline Error cvtImage(Context context, Image *pimageSrc, Image *pimageDest)
 namespace bs
 {
 
+enum CAM_SELECT
+{
+	L,
+	R,
+	BOTH
+};
+
 struct CameraParams
 {
 	fc::CamSerial serial;
@@ -265,7 +213,7 @@ inline void loadCameraParameterBase(cv::FileNode& fn, bs::CameraParams& param)
 	int tmp_serial, tmp_format;
 
 	fn["serial"]	>> tmp_serial;	param.serial = tmp_serial;
-	fn["format"]	>> tmp_format;	param.pixel_format = fc::int2PixFmt(tmp_format);
+	fn["format"]	>> tmp_format;	param.pixel_format = static_cast<fc::PixFmt>(tmp_format);
 	fn["channels"]	>> param.channels;
 	fn["size"]		>> param.size;
 	fn["shutter"]	>> param.shutter;
@@ -298,18 +246,17 @@ bool loadCameraParameter(const cv::FileStorage& fs, CameraParams& param)
 	return true;
 }
 
-bool loadStereoCameraParameter(const cv::FileStorage& fs, CameraParams& param_l, CameraParams& param_r)
+bool loadStereoCameraParameter(const cv::FileStorage& fs, Stereo<CameraParams>& param)
 {
-	loadCameraParameterBase(fs["left"], param_l);
-	loadCameraParameterBase(fs["right"], param_r);
-
+	loadCameraParameterBase(fs["left"], param[L]);
+	loadCameraParameterBase(fs["right"], param[R]);
 	return true;
 }
 
-bool loadStereoCameraParameter(const cv::FileStorage& fs, Stereo<CameraParams>& param)
-{
-	return loadStereoCameraParameter(fs, param[0], param[1]);
-}
+//bool loadStereoCameraParameter(const cv::FileStorage& fs, CameraParams& param_l, CameraParams& param_r)
+//{
+//	return loadStereoCameraParameter(fs, { { param_l, param_r } });
+//}
 
 bool saveCameraParameter(cv::FileStorage& fs, const CameraParams& param)
 {
@@ -332,7 +279,7 @@ bool saveStereoCameraParameter(cv::FileStorage& fs, const CameraParams& param_l,
 
 bool saveStereoCameraParameter(cv::FileStorage& fs, const Stereo<CameraParams>& param)
 {
-	saveStereoCameraParameter(fs, param[0], param[1]);
+	saveStereoCameraParameter(fs, param[L], param[R]);
 
 	return true;
 }
@@ -351,7 +298,7 @@ cv::Mat image;
 cam_cntl >> image;
 
 // Resize image
-cv::Size view_size = cam_cntl.setViewSize(640);
+cv::Size view_size = cam_cntl.calcViewSize(640);
 cv::resize(image, image, view_size);
 @endcode
 */
@@ -369,13 +316,13 @@ class CameraController
 		fc::Error err;
 
 		err = fc::createContext(&fly_);
-		fc::fcAssert(err, "fc::createContext");
+		fc::Assert(err, "fc::createContext");
 
 		err = fc::initFromSerial(fly_, param_.serial);
-		fc::fcAssert(err, "fc::initFromSerial");
+		fc::Assert(err, "fc::initFromSerial");
 
 		err = fc::startCustomImage(fly_, param_.size.width, param_.size.height, param_.pixel_format);
-		fc::fcAssert(err, "fc::startCustomImage");
+		fc::Assert(err, "fc::startCustomImage");
 
 		setProp(param_.shutter, param_.gain, param_.fps);
 
@@ -409,18 +356,7 @@ public:
 	/*!
 	@note Change the name of parameter file path written below
 	*/
-	CameraController() :
-		file_param_("./cam_param.xml"), stereo_(false)
-	{
-		cv::FileStorage fs(file_param_, cv::FileStorage::READ);
-		CV_Assert(fs.isOpened() || !"Cannot open file in bs::CameraController constructor.");
-
-		bool complete = loadCameraParameter(fs, param_);
-		assert(complete || !"in CameraController constructor from file.");
-		init();
-
-		std::cout << "[Camera Controller] Success initialize from file." << std::endl;
-	}
+	CameraController() {}
 
 	CameraController(const CameraParams& param, const bool stereo = false) :
 		param_(param), stereo_(stereo)
@@ -457,6 +393,24 @@ public:
 			}
 			std::cout << "[Camera Controller] Bye!" << std::endl;
 		}
+	}
+
+	/*!
+	@note Change the name of parameter file path written below
+	*/
+	void initFromFile(const std::string file = param::gl_file_cam_param)
+	{
+		cv::FileStorage fs(file, cv::FileStorage::READ);
+		CV_Assert(fs.isOpened());
+		file_param_ = file;
+
+		bool complete = loadCameraParameter(fs, param_);
+		assert(complete || !"Cannot load camera parameter from file.");
+
+		init();
+		stereo_ = false;
+
+		std::cout << "[Camera Controller] Success initialize from file." << std::endl;
 	}
 
 	void restart(const fc::CamSerial serial = 0, const cv::Size size = cv::Size(), const fc::PixFmt fmt = FCPF_FORCE_QUADLET)
@@ -501,21 +455,21 @@ public:
 			err = fc::setCamAbsProp(fly_, FLYCAPTURE_SHUTTER, shutter);
 		else
 			err = fc::setCamProp(fly_, FLYCAPTURE_SHUTTER, 0, 0, true);
-		fc::fcAssert(err, "fc::setCamProp(shutter)");
+		fc::Assert(err, "fc::setCamProp(shutter)");
 		param_.shutter = shutter;
 
 		if (0 <= gain)
 			err = fc::setCamAbsProp(fly_, FLYCAPTURE_GAIN, gain);
 		else
 			err = fc::setCamProp(fly_, FLYCAPTURE_GAIN, 0, 0, true);
-		fc::fcAssert(err, "fc::setCamProp(gain)");
+		fc::Assert(err, "fc::setCamProp(gain)");
 		param_.gain = gain;
 
 		if (0 <= fps)
 			err = fc::setCamAbsProp(fly_, FLYCAPTURE_FRAME_RATE, fps);
 		else
 			err = fc::setCamProp(fly_, FLYCAPTURE_FRAME_RATE, 0, 0, true);
-		fc::fcAssert(err, "fc::setCamProp(frame rate)");
+		fc::Assert(err, "fc::setCamProp(frame rate)");
 		param_.fps = fps;
 
 		return;
@@ -547,7 +501,7 @@ public:
 			err = fc::setCamAbsProp(fly_, prop, value);
 		else
 			err = fc::setCamProp(fly_, prop, 0, 0, true);
-		fc::fcAssert(err, "fc::setCamProp OR fc::setCamAbsProp");
+		fc::Assert(err, "fc::setCamProp OR fc::setCamAbsProp");
 
 		return;
 	}
@@ -568,19 +522,17 @@ public:
 	void operator >> (cv::Mat& im)
 	{
 		assert(param_.channels == 1 || param_.channels == 3);
-		fc::Image fc_im, im_conv;
-		unsigned char *buffer;
+		fc::Image fc_im, fc_im_conv;
 		int type = (param_.channels == 1) ? CV_8U : (CV_8UC3);
 
 		fc::Error err = fc::grabImage2(fly_, &fc_im);
-		fc::fcAssert(err, "fc::grabImage2");
+		fc::Assert(err, "fc::grabImage2");
 
-		im = cv::Mat(im_conv.iRows, im_conv.iCols, type);
-		im_conv.pData = (uchar*)im.data;
-		im_conv.pixelFormat = param_.pixel_format;
-		fc::cvtImage(fly_, &fc_im, &im_conv);
-		memcpy(im.data, im_conv.pData, im_conv.iRows * im_conv.iRowInc);
-		delete[]buffer;
+		im = cv::Mat(fc_im.iRows, fc_im.iCols, type);
+		fc_im_conv.pData = (uchar*)im.data;
+		fc_im_conv.pixelFormat = param_.pixel_format;
+		err = fc::cvtImage(fly_, &fc_im, &fc_im_conv);
+		fc::Assert(err, "fc::cvtImage");
 
 		if (im.empty())
 		{
@@ -588,11 +540,9 @@ public:
 			restart();
 			*this >> im;
 		}
-		//if (!stereo_)
-		//	std::cout << "[Camera Controller] Success capture." << std::endl;
 	}
 
-	cv::Size setViewSize(const int width)
+	cv::Size calcViewSize(const int width)
 	{
 		CV_Assert(0 < param_.size.area());
 
@@ -619,55 +569,28 @@ Stereo<cv::Mat> image;
 cam_cntl >> image;
 
 // Resize image
-cv::Size view_size = cam_cntl.setViewSize(640);
-cv::resize(image[0], image[0], view_size);
+cv::Size view_size = cam_cntl.calcViewSize(640);
+cv::resize(image[bs::L], image[bs::L], view_size);
 @endcode
 */
 class StereoCameraController
 {
-	CameraController cam_left_, cam_right_;
-	CameraParams param_l_, param_r_;
+	Stereo<CameraController> cam_;
+	Stereo<CameraParams> param_;
 	std::string file_param_;
 
 public:
-	enum CAM_SELECT
-	{
-		LEFT,
-		RIGHT,
-		BOTH
-	};
-
 	/*!
 	@note Change the name of parameter file path written below
 	*/
-	StereoCameraController() :
-		file_param_("./stereo_cam_param.xml")
-	{
-		cv::FileStorage fs(file_param_, cv::FileStorage::READ);
-		CV_Assert(fs.isOpened() || !"Cannot open file in bs::StereoCameraController constructor.");
-
-		loadStereoCameraParameter(fs, param_l_, param_r_);
-		cam_left_ = *(new CameraController(param_l_, true));
-		cam_right_ = *(new CameraController(param_r_, true));
-		std::cout << "[Stereo Camera Controller] Success initialize from file." << std::endl;
-	}
+	StereoCameraController() {}
 
 	StereoCameraController(const CameraParams& param_l, const CameraParams& param_r) :
-		param_l_(param_l), param_r_(param_r)
+		param_({ { param_l, param_r } })
 	{
-		cam_left_ = *(new CameraController(param_l, true));
-		cam_right_ = *(new CameraController(param_r, true));
+		cam_[L] = *(new CameraController(param_l, true));
+		cam_[R] = *(new CameraController(param_r, true));
 		std::cout << "[Stereo Camera Controller] Success initialize from CameraParams." << std::endl;
-	}
-
-	StereoCameraController(const Stereo<fc::CamSerial> serial, const cv::Size size, const fc::PixFmt fmt = FLYCAPTURE_MONO8) :
-		param_l_(CameraParams(serial[0], fmt, size)), param_r_(CameraParams(serial[1], fmt, size))
-	{
-		CV_Assert(0 < size.area());
-
-		cam_left_ = *(new CameraController(serial[0], size, fmt, true));
-		cam_right_ = *(new CameraController(serial[1], size, fmt, true));
-		std::cout << "[Stereo Camera Controller] Success initialize from variables." << std::endl;
 	}
 
 	~StereoCameraController()
@@ -677,16 +600,32 @@ public:
 			cv::FileStorage fs(file_param_, cv::FileStorage::WRITE);
 			CV_Assert(fs.isOpened());
 
-			bool complete = saveStereoCameraParameter(fs, param_l_, param_r_);
+			bool complete = saveStereoCameraParameter(fs, param_);
 			assert(complete || !"saveStereoCameraParameter");
 		}
 		std::cout << "[Stereo Camera Controller] Bye!" << std::endl;
 	}
 
+	/*!
+	@note Change the name of parameter file path written below
+	*/
+	void initFromFile(const std::string file = param::gl_file_stereo_cam_param)
+	{
+		cv::FileStorage fs(file, cv::FileStorage::READ);
+		CV_Assert(fs.isOpened() || !"Cannot open file in bs::StereoCameraController constructor.");
+
+		bool complete = loadStereoCameraParameter(fs, param_);
+		assert(complete || !"Cannot load stereo camera parameters from file.");
+
+		cam_[L] = *(new CameraController(param_[L], true));
+		cam_[R] = *(new CameraController(param_[R], true));
+		std::cout << "[Stereo Camera Controller] Success initialize from file." << std::endl;
+	}
+
 	void restart(const Stereo<fc::CamSerial> serial, const cv::Size size, const fc::PixFmt fmt = FLYCAPTURE_MONO8)
 	{
-		cam_left_.restart(serial[0], size, fmt);
-		cam_right_.restart(serial[1], size, fmt);
+		cam_[L].restart(serial[L], size, fmt);
+		cam_[R].restart(serial[R], size, fmt);
 
 		std::cout << "[Stereo Camera Controller] Success restart." << std::endl;
 		return;
@@ -698,75 +637,75 @@ public:
 			fs.open(file_param_, cv::FileStorage::READ);
 		CV_Assert(fs.isOpened());
 
-		if (!loadStereoCameraParameter(fs, param_l_, param_r_))
+		if (!loadStereoCameraParameter(fs, param_))
 			return;
 
 		Stereo<float> shutter, gain, fps;
-		shutter = { { param_l_.shutter, param_r_.shutter } };
-		gain = { { param_l_.gain, param_r_.gain } };
-		fps = { { param_l_.fps, param_r_.fps } };
+		shutter = { { param_[L].shutter, param_[R].shutter } };
+		gain = { { param_[L].gain, param_[R].gain } };
+		fps = { { param_[L].fps, param_[R].fps } };
 		setProp(shutter, gain, fps);
 		return;
 	}
 
 	CameraParams getParams(const CAM_SELECT select)
 	{
-		if (select == CAM_SELECT::LEFT)
-			return cam_left_.getParams();
-		else if (select == CAM_SELECT::RIGHT)
-			return cam_right_.getParams();
+		if (select == L)
+			return cam_[L].getParams();
+		else if (select == R)
+			return cam_[R].getParams();
 
-		std::cerr << "[Stereo Camera Controller] Error: argument must be 'LEFT' or 'RIGHT'." << std::endl;
+		std::cerr << "[Stereo Camera Controller] Error: argument must be 'L' or 'R'." << std::endl;
 		return CameraParams();
 	}
 
 	void setProp(const Stereo<float> shutter, const Stereo<float> gain, const Stereo<float> fps)
 	{
-		cam_left_.setProp(shutter[0], gain[0], fps[0]);
-		cam_right_.setProp(shutter[1], gain[1], fps[1]);
+		cam_[L].setProp(shutter[L], gain[L], fps[L]);
+		cam_[R].setProp(shutter[R], gain[R], fps[R]);
 		return;
 	}
 
 	bool setProp(const fc::Property prop, const float value, CAM_SELECT select)
 	{
-		if (select == CAM_SELECT::LEFT)
+		if (select == L)
 		{
-			cam_left_.setProp(prop, value);
+			cam_[L].setProp(prop, value);
 			return true;
 		}
-		else if (select == CAM_SELECT::RIGHT)
+		else if (select == R)
 		{
-			cam_right_.setProp(prop, value);
+			cam_[R].setProp(prop, value);
 			return true;
 		}
 
-		std::cerr << "[Stereo Camera Controller] Error: argument must be 'LEFT' or 'RIGHT'." << std::endl;
+		std::cerr << "[Stereo Camera Controller] Error: argument must be 'L' or 'R'." << std::endl;
 		return false;
 	}
 
 	void setProp(const fc::Property prop, const Stereo<float> value)
 	{
-		cam_left_.setProp(prop, value[0]);
-		cam_right_.setProp(prop, value[1]);
+		cam_[L].setProp(prop, value[L]);
+		cam_[R].setProp(prop, value[R]);
 		return;
 	}
 
 	void capture(cv::Mat& im, CAM_SELECT select)
 	{
-		assert(select == (LEFT | RIGHT) || !"in StereCameraController capture");
+		assert(select == (L | R) || !"in StereCameraController capture");
 
 		//std::cout << "[Stereo Camera Controller] Capture. ";
 
 		switch (select)
 		{
-		case StereoCameraController::LEFT:
+		case L:
 			//std::cout << "left..";
-			cam_left_ >> im;
+			cam_[L] >> im;
 			break;
 
-		case StereoCameraController::RIGHT:
+		case R:
 			//std::cout << "right..";
-			cam_right_ >> im;
+			cam_[R] >> im;
 			break;
 
 		default:
@@ -778,24 +717,24 @@ public:
 	void operator >> (Stereo<cv::Mat>& im)
 	{
 		//std::cout << "[Stereo Camera Controller] Capture. left..";
-		cam_left_ >> im[0];
+		cam_[L] >> im[L];
 
 		//std::cout << "right..";
-		cam_right_ >> im[1];
+		cam_[R] >> im[R];
 		//std::cout << "success." << std::endl;
 	}
 
 	/*!
 	@note Support only left_size == right_size
 	*/
-	Stereo<cv::Size> setViewSize(const int width)
+	Stereo<cv::Size> calcViewSize(const int width)
 	{
-		CV_Assert(0 < param_l_.size.area() && 0 < param_r_.size.area());
+		CV_Assert(0 < param_[L].size.area() && 0 < param_[R].size.area());
 		
 		Stereo<cv::Size> output;
-		int height = (param_l_.size.height * width) / param_l_.size.width;
+		int height = (param_[L].size.height * width) / param_[L].size.width;
 		output[0] = cv::Size(width, height);
-		height = (param_r_.size.height * width) / param_r_.size.width;
+		height = (param_[R].size.height * width) / param_[R].size.width;
 		output[1] = cv::Size(width, height);
 
 		return output;
