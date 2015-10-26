@@ -15,6 +15,7 @@
 #include<array>
 template<class T>
 using Stereo = std::array<T, 2>;
+enum CAM_SELECT { L, R, BOTH };
 #endif
 
 // Change these values in your environment.
@@ -174,13 +175,6 @@ inline Error cvtImage(Context context, Image *pimageSrc, Image *pimageDest)
 
 namespace bs
 {
-
-enum CAM_SELECT
-{
-	L,
-	R,
-	BOTH
-};
 
 struct CameraParams
 {
@@ -570,7 +564,7 @@ cam_cntl >> image;
 
 // Resize image
 cv::Size view_size = cam_cntl.calcViewSize(640);
-cv::resize(image[bs::L], image[bs::L], view_size);
+cv::resize(image[L], image[L], view_size);
 @endcode
 */
 class StereoCameraController
