@@ -9,14 +9,7 @@
 #include <FC1/PGRFlyCapture.h>
 #pragma warning(default:4819)
 
-
-#ifndef _BS_STEREO_
-#define _BS_STEREO_
-#include<array>
-template<class T>
-using Stereo = std::array<T, 2>;
-enum CAM_SELECT { L, R, BOTH };
-#endif
+#include <bs/stereo_util.h>
 
 // Change these values in your environment.
 namespace bs
@@ -668,7 +661,7 @@ public:
 
 	bool setProp(const fc::Property prop, const float value, CAM_SELECT select)
 	{
-		if (select != L | R)
+		if (select != (L | R))
 		{
 			std::cerr << "[Stereo Camera Controller] Error: argument must be 'L' or 'R'." << std::endl;
 			return false;
@@ -699,28 +692,28 @@ public:
 		return;
 	}
 
-	void setProp(const fc::Property prop, const Stereo<CameraParams>& param)
-	{
-		switch (prop)
-		{
-		default:
-			break;
+	//void setProp(const fc::Property prop, const Stereo<CameraParams>& param)
+	//{
+	//	switch (prop)
+	//	{
+	//	default:
+	//		break;
 
-		case FLYCAPTURE_SHUTTER:
-			cam_[L].setProp(prop, param[L].shutter);
-			param_[L].shutter
+	//	case FLYCAPTURE_SHUTTER:
+	//		cam_[L].setProp(prop, param[L].shutter);
+	//		param_[L].shutter
 
-		}
-		const bool is_shutter = (prop == FLYCAPTURE_SHUTTER);
-		const bool is_gain = (prop == FLYCAPTURE_GAIN);
-		const bool is_frame_rate = (prop == FLYCAPTURE_FRAME_RATE);
-		float dummy;
-		is_shutter ? param_[L].shutter : is_gain ? param_[L].gain : is_frame_rate ? param_[L].fps : dummy = value[L];
-		is_shutter ? param_[R].shutter : is_gain ? param_[R].gain : is_frame_rate ? param_[R].fps : dummy = value[R];
-		cam_[L].setProp(prop, value[L]);
-		cam_[R].setProp(prop, value[R]);
-		return;
-	}
+	//	}
+	//	const bool is_shutter = (prop == FLYCAPTURE_SHUTTER);
+	//	const bool is_gain = (prop == FLYCAPTURE_GAIN);
+	//	const bool is_frame_rate = (prop == FLYCAPTURE_FRAME_RATE);
+	//	float dummy;
+	//	is_shutter ? param_[L].shutter : is_gain ? param_[L].gain : is_frame_rate ? param_[L].fps : dummy = value[L];
+	//	is_shutter ? param_[R].shutter : is_gain ? param_[R].gain : is_frame_rate ? param_[R].fps : dummy = value[R];
+	//	cam_[L].setProp(prop, value[L]);
+	//	cam_[R].setProp(prop, value[R]);
+	//	return;
+	//}
 
 	void capture(cv::Mat& im, CAM_SELECT select)
 	{

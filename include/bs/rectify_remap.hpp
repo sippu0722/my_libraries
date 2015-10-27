@@ -7,12 +7,7 @@
 #include <opencv2/imgproc.hpp>
 #pragma warning(default:4819)
 
-#ifndef _BS_STEREO_
-#define _BS_STEREO_
-#include<array>
-template<class T>
-using Stereo = std::array < T, 2 >;
-#endif
+#include <bs/stereo_util.h>
 
 namespace bs
 {
