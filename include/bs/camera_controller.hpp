@@ -570,10 +570,11 @@ cv::resize(image[L], image[L], view_size);
 class StereoCameraController
 {
 	Stereo<CameraController> cam_;
-	Stereo<CameraParams> param_;
 	std::string file_param_;
 
 public:
+	Stereo<CameraParams> param_;
+
 	/*!
 	@note Change the name of parameter file path written below
 	*/
@@ -687,6 +688,29 @@ public:
 
 	void setProp(const fc::Property prop, const Stereo<float> value)
 	{
+		const bool is_shutter = (prop == FLYCAPTURE_SHUTTER);
+		const bool is_gain = (prop == FLYCAPTURE_GAIN);
+		const bool is_frame_rate = (prop == FLYCAPTURE_FRAME_RATE);
+		float dummy;
+		is_shutter ? param_[L].shutter : is_gain ? param_[L].gain : is_frame_rate ? param_[L].fps : dummy = value[L];
+		is_shutter ? param_[R].shutter : is_gain ? param_[R].gain : is_frame_rate ? param_[R].fps : dummy = value[R];
+		cam_[L].setProp(prop, value[L]);
+		cam_[R].setProp(prop, value[R]);
+		return;
+	}
+
+	void setProp(const fc::Property prop, const Stereo<CameraParams>& param)
+	{
+		switch (prop)
+		{
+		default:
+			break;
+
+		case FLYCAPTURE_SHUTTER:
+			cam_[L].setProp(prop, param[L].shutter);
+			param_[L].shutter
+
+		}
 		const bool is_shutter = (prop == FLYCAPTURE_SHUTTER);
 		const bool is_gain = (prop == FLYCAPTURE_GAIN);
 		const bool is_frame_rate = (prop == FLYCAPTURE_FRAME_RATE);
