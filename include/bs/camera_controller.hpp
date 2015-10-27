@@ -642,12 +642,17 @@ public:
 		return;
 	}
 
-	CameraParams getParams(const CAM_SELECT select)
+	Stereo<CameraParams> getParam()
+	{
+		return param_;
+	}
+
+	CameraParams getParam(const CAM_SELECT select)
 	{
 		if (select == L)
-			return cam_[L].getParams();
+			return param_[L];
 		else if (select == R)
-			return cam_[R].getParams();
+			return param_[R];
 
 		std::cerr << "[Stereo Camera Controller] Error: argument must be 'L' or 'R'." << std::endl;
 		return CameraParams();
@@ -662,23 +667,32 @@ public:
 
 	bool setProp(const fc::Property prop, const float value, CAM_SELECT select)
 	{
-		if (select == L)
+		if (select != L | R)
 		{
-			cam_[L].setProp(prop, value);
-			return true;
-		}
-		else if (select == R)
-		{
-			cam_[R].setProp(prop, value);
-			return true;
+			std::cerr << "[Stereo Camera Controller] Error: argument must be 'L' or 'R'." << std::endl;
+			return false;
 		}
 
-		std::cerr << "[Stereo Camera Controller] Error: argument must be 'L' or 'R'." << std::endl;
-		return false;
+		const bool is_shutter = (prop == FLYCAPTURE_SHUTTER);
+		const bool is_gain = (prop == FLYCAPTURE_GAIN);
+		const bool is_frame_rate = (prop == FLYCAPTURE_FRAME_RATE);
+		float dummy;
+		is_shutter ? param_[select].shutter :
+			is_gain ? param_[select].gain :
+			is_frame_rate ? param_[select].fps : dummy = value;
+
+		cam_[select].setProp(prop, value);
+
 	}
 
 	void setProp(const fc::Property prop, const Stereo<float> value)
 	{
+		const bool is_shutter = (prop == FLYCAPTURE_SHUTTER);
+		const bool is_gain = (prop == FLYCAPTURE_GAIN);
+		const bool is_frame_rate = (prop == FLYCAPTURE_FRAME_RATE);
+		float dummy;
+		is_shutter ? param_[L].shutter : is_gain ? param_[L].gain : is_frame_rate ? param_[L].fps : dummy = value[L];
+		is_shutter ? param_[R].shutter : is_gain ? param_[R].gain : is_frame_rate ? param_[R].fps : dummy = value[R];
 		cam_[L].setProp(prop, value[L]);
 		cam_[R].setProp(prop, value[R]);
 		return;
