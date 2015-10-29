@@ -510,10 +510,23 @@ public:
 	{
 		assert(param_.channels == 1 || param_.channels == 3);
 		fc::Image fc_im, fc_im_conv;
+		fc::Error err = FlyCaptureError::FLYCAPTURE_FAILED;
 		int type = (param_.channels == 1) ? CV_8U : (CV_8UC3);
 
-		fc::Error err = fc::grabImage2(fly_, &fc_im);
-		fc::Assert(err, "fc::grabImage2");
+		for (size_t i = 0; i < 10; i++)
+		{
+			err = fc::grabImage2(fly_, &fc_im);
+
+			if (err == FLYCAPTURE_OK)
+				break;
+
+			std::cout << (stereo_ ? "[Stereo " : "[");
+			std::cout << "Camera Controller] fail to capture(fc::grabImage2). Retry!" << std::endl;
+			restart();
+		}
+
+		if (err != FLYCAPTURE_OK)
+			fc::Assert(err, "fc::grabImage2");
 
 		im = cv::Mat(fc_im.iRows, fc_im.iCols, type);
 		fc_im_conv.pData = (uchar*)im.data;

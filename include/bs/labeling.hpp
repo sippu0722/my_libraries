@@ -238,15 +238,11 @@ public:
 
 	void createMask(const int index, cv::OutputArray mask)
 	{
-		cv::Mat m = mask.getMat();
-
-		if (m.empty() && image_size_.area() != 0)
-			m = cv::Mat(image_size_, CV_8U);
-
-		m = 0;
+		cv::Mat m(image_size_, CV_8U, cv::Scalar::all(0));
 
 		for (const auto& p : connected_pixels_[index])
 			m.at<uchar>(p) = 1;
+		m.copyTo(mask);
 		return;
 	}
 
