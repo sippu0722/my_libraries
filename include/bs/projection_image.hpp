@@ -29,9 +29,10 @@ namespace proj
 {
 
 cv::Mat makeRandomDot(
-	const cv::Size& size, const int dot_size,
-	const std::pair<int, int> range, const bool weighted_pattern,
-	const std::pair<double, double> weight = { 1., 1. })
+const cv::Size& size, const int dot_size,
+const bool weighted_pattern,
+const std::pair<int, int> range = { 0, 255 },
+const std::pair<double, double> weight = { 1., 1. })
 {
 	cv::Mat im;
 
@@ -102,7 +103,21 @@ cv::Mat makeRandomDot(
 	return im;
 }
 
+/*!
+@overload
+*/
+cv::Mat makeRandomDot(
+	const int rows, const int cols,
+	const int dot_size,
+	const bool weighted_pattern,
+	const std::pair<int, int> range = { 0, 255 },
+	const std::pair<double, double> weight = { 1., 1. })
+{
+	return makeRandomDot(cv::Size(cols, rows), dot_size, weighted_pattern, range, weight);
 }
+
+}		// namespace proj
+
 
 inline void showWindowNoframe(cv::InputArray image,
 	const std::string win_name = "prj",
@@ -128,4 +143,4 @@ inline void showWindowNoframe(cv::InputArray image,
 	return;
 }
 
-}
+}	// namespace bs
