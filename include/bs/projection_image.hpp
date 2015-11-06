@@ -29,10 +29,10 @@ namespace proj
 {
 
 cv::Mat makeRandomDot(
-const cv::Size& size, const int dot_size,
-const bool weighted_pattern,
-const std::pair<int, int> range = { 0, 255 },
-const std::pair<double, double> weight = { 1., 1. })
+	const cv::Size& size, const int dot_size,
+	const bool weighted_pattern,
+	const std::pair<int, int> range = { 0, 255 },
+	const std::pair<double, double> weight = { 1., 1. })
 {
 	cv::Mat im;
 
@@ -114,6 +114,38 @@ cv::Mat makeRandomDot(
 	const std::pair<double, double> weight = { 1., 1. })
 {
 	return makeRandomDot(cv::Size(cols, rows), dot_size, weighted_pattern, range, weight);
+}
+
+cv::Mat makeStripe(
+	const cv::Size& size, const int stripe_width,
+	const bool is_vertical,
+	const std::pair<int, int> range = { 0, 255 }
+	)
+{
+	cv::Mat im(size, CV_8U);
+
+	const size_t length = is_vertical ? size.height : size.width;
+
+	for (int i = 0; i < length; ++i)
+	{
+		const int value = (i % (stripe_width * 2) < stripe_width ? range.first : range.second);
+		(is_vertical ? im.row(i) : im.col(i)) = cv::Scalar::all(value);
+	}
+	return im;
+
+}
+
+/*!
+@overload
+*/
+cv::Mat makeStripe(
+	const int rows, const int cols,
+	const int stripe_width,
+	const bool is_vertical,
+	const std::pair<int, int> range = { 0, 255 }
+	)
+{
+	return makeStripe(cv::Size(cols, rows), stripe_width, is_vertical, range);
 }
 
 }		// namespace proj
