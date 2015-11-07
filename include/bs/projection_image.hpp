@@ -150,7 +150,7 @@ cv::Mat makeStripe(
 }
 
 cv::Mat makeRandomStripe(
-	const uint rows, const uint cols,
+	const cv::Size& size,
 	const bool is_vertical,
 	const std::pair<uint, uint> width_range,
 	const std::pair<uint, uint> intensity_range = { 0, 255 }
@@ -161,8 +161,8 @@ cv::Mat makeRandomStripe(
 	std::random_device rd;
 	std::mt19937 mt(rd());
 	std::uniform_int_distribution<uint> gen(width_range.first, width_range.second);
-	uint w, length = (is_vertical ? rows : cols), count = 0;
-	cv::Mat im(rows, cols, CV_8U);
+	uint w, length = (is_vertical ? size.height : size.width), count = 0;
+	cv::Mat im(size, CV_8U);
 	bool draw_brack = true;
 
 	while (count < length)
@@ -179,7 +179,17 @@ cv::Mat makeRandomStripe(
 	return im;
 }
 
-
+cv::Mat makeRandomStripe(
+	const uint rows, const uint cols,
+	const bool is_vertical,
+	const std::pair<uint, uint> width_range,
+	const std::pair<uint, uint> intensity_range = { 0, 255 }
+	)
+{
+	return makeRandomStripe(
+		cv::Size(cols, rows),
+		is_vertical, width_range, intensity_range);
+}
 
 }		// namespace proj
 
