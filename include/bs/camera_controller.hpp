@@ -334,6 +334,9 @@ class CameraController
 			param_.channels = 3;
 			break;
 		}
+		cv::Mat dummy;
+		*this >> dummy;
+		*this >> dummy;
 
 		return;
 	}
