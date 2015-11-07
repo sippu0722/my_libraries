@@ -370,14 +370,14 @@ public:
 
 		if (!stereo_)
 		{
-			if (!file_param_.empty())
-			{
-				cv::FileStorage fs(file_param_, cv::FileStorage::WRITE);
-				CV_Assert(fs.isOpened());
+			//if (!file_param_.empty())
+			//{
+			//	cv::FileStorage fs(file_param_, cv::FileStorage::WRITE);
+			//	CV_Assert(fs.isOpened());
 
-				bool complete = saveCameraParameter(fs, param_);
-				assert(complete || !"saveCameraParameter");
-			}
+			//	bool complete = saveCameraParameter(fs, param_);
+			//	assert(complete || !"saveCameraParameter");
+			//}
 			std::cout << "[Camera Controller] Bye!" << std::endl;
 		}
 	}
@@ -596,14 +596,14 @@ public:
 
 	~StereoCameraController()
 	{
-		if (!file_param_.empty())
-		{
-			cv::FileStorage fs(file_param_, cv::FileStorage::WRITE);
-			CV_Assert(fs.isOpened());
+		//if (!file_param_.empty())
+		//{
+		//	cv::FileStorage fs(file_param_, cv::FileStorage::WRITE);
+		//	CV_Assert(fs.isOpened());
 
-			bool complete = saveStereoCameraParameter(fs, param_);
-			assert(complete || !"saveStereoCameraParameter");
-		}
+		//	bool complete = saveStereoCameraParameter(fs, param_);
+		//	assert(complete || !"saveStereoCameraParameter");
+		//}
 		std::cout << "[Stereo Camera Controller] Bye!" << std::endl;
 	}
 

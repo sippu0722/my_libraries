@@ -2,7 +2,6 @@
 
 #include<string>
 
-
 const std::string kDirTop = "D:/projectAir3/";
 const std::string kDirCalib = kDirTop + "BM_calibration/";
 const std::string kDirPointCloud = kDirTop + "BM_point_cloud/";

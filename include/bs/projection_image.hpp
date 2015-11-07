@@ -29,20 +29,20 @@ namespace proj
 {
 
 cv::Mat makeRandomDot(
-const cv::Size& size, const int dot_size,
-const bool weighted_pattern,
-const std::pair<int, int> range = { 0, 255 },
-const std::pair<double, double> weight = { 1., 1. })
+	const cv::Size& size, const uint dot_size,
+	const bool weighted_pattern,
+	const std::pair<uint, uint> range = { 0, 255 },
+	const std::pair<double, double> weight = { 1., 1. })
 {
 	cv::Mat im;
 
 	if (!weighted_pattern)
 	{
-		const int low = std::min(range.first, range.second);
-		const int high = std::max(range.first, range.second);
+		const uint low = std::min(range.first, range.second);
+		const uint high = std::max(range.first, range.second);
 		im = cv::Mat(size, CV_8U);
 		cv::randu(im, 0, 2);
-		cv::threshold(im, im, 0, high - low, cv::THRESH_BINARY);
+		cv::threshold(im, im, 0, double(high - low), cv::THRESH_BINARY);
 		im += low;
 
 		if (1 < dot_size)
@@ -55,7 +55,7 @@ const std::pair<double, double> weight = { 1., 1. })
 	{
 		std::random_device rd;
 		std::mt19937 mt(rd());
-		std::vector<int> vec_r(2);
+		std::vector<uint> vec_r(2);
 		std::vector<double> vec_w(2);
 
 		im = cv::Mat(size, CV_8U);
@@ -75,7 +75,7 @@ const std::pair<double, double> weight = { 1., 1. })
 			vec_w[0] = weight.second;
 		}
 
-		size_t i = 0;
+		int i = 0;
 		std::discrete_distribution<> generator(
 			vec_w.size(),
 			0.,		// Dummy!!!!!	*std::min_element(vec_w.begin(), vec_w.end()),
@@ -91,7 +91,7 @@ const std::pair<double, double> weight = { 1., 1. })
 			uchar *ptr = im.ptr<uchar>(row);
 
 			for (int col = 0; col < im.cols; ++col)
-				ptr[col] = vec_r[generator(mt)];
+				ptr[col] = static_cast<uchar>(vec_r[generator(mt)]);
 		}
 
 		if (1 < dot_size)
@@ -107,14 +107,79 @@ const std::pair<double, double> weight = { 1., 1. })
 @overload
 */
 cv::Mat makeRandomDot(
-	const int rows, const int cols,
-	const int dot_size,
+	const uint rows, const uint cols,
+	const uint dot_size,
 	const bool weighted_pattern,
-	const std::pair<int, int> range = { 0, 255 },
+	const std::pair<uint, uint> range = { 0, 255 },
 	const std::pair<double, double> weight = { 1., 1. })
 {
 	return makeRandomDot(cv::Size(cols, rows), dot_size, weighted_pattern, range, weight);
 }
+
+cv::Mat makeStripe(
+	const cv::Size& size, const uint stripe_width,
+	const bool is_vertical,
+	const std::pair<uint, uint> range = { 0, 255 }
+	)
+{
+	cv::Mat im(size, CV_8U);
+
+	const uint length = is_vertical ? size.height : size.width;
+
+#pragma omp parallel for
+	for (int i = 0; i < (int)length; ++i)
+	{
+		const uint value = (i % (stripe_width * 2) < stripe_width ? range.first : range.second);
+		(is_vertical ? im.row(i) : im.col(i)) = cv::Scalar::all(value);
+	}
+	return im;
+
+}
+
+/*!
+@overload
+*/
+cv::Mat makeStripe(
+	const uint rows, const uint cols,
+	const uint stripe_width,
+	const bool is_vertical,
+	const std::pair<uint, uint> range = { 0, 255 }
+	)
+{
+	return makeStripe(cv::Size(cols, rows), stripe_width, is_vertical, range);
+}
+
+cv::Mat makeRandomStripe(
+	const uint rows, const uint cols,
+	const bool is_vertical,
+	const std::pair<uint, uint> width_range,
+	const std::pair<uint, uint> intensity_range = { 0, 255 }
+	)
+{
+	assert(0 < width_range.first && width_range.first < width_range.second);
+
+	std::random_device rd;
+	std::mt19937 mt(rd());
+	std::uniform_int_distribution<uint> gen(width_range.first, width_range.second);
+	uint w, length = (is_vertical ? rows : cols), count = 0;
+	cv::Mat im(rows, cols, CV_8U);
+	bool draw_brack = true;
+
+	while (count < length)
+	{
+		cv::Range range;
+		
+		w = gen(mt);
+		range.start = count;
+		count += w;
+		range.end = std::min(count, length);
+		(is_vertical ? im.rowRange(range) : im.colRange(range)) = cv::Scalar::all(draw_brack ? intensity_range.first : intensity_range.second);
+		draw_brack = !draw_brack;
+	}
+	return im;
+}
+
+
 
 }		// namespace proj
 
