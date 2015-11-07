@@ -29,17 +29,17 @@ namespace proj
 {
 
 cv::Mat makeRandomDot(
-	const cv::Size& size, const int dot_size,
+	const cv::Size& size, const size_t dot_size,
 	const bool weighted_pattern,
-	const std::pair<int, int> range = { 0, 255 },
+	const std::pair<size_t, size_t> range = { 0, 255 },
 	const std::pair<double, double> weight = { 1., 1. })
 {
 	cv::Mat im;
 
 	if (!weighted_pattern)
 	{
-		const int low = std::min(range.first, range.second);
-		const int high = std::max(range.first, range.second);
+		const size_t low = std::min(range.first, range.second);
+		const size_t high = std::max(range.first, range.second);
 		im = cv::Mat(size, CV_8U);
 		cv::randu(im, 0, 2);
 		cv::threshold(im, im, 0, high - low, cv::THRESH_BINARY);
@@ -107,19 +107,19 @@ cv::Mat makeRandomDot(
 @overload
 */
 cv::Mat makeRandomDot(
-	const int rows, const int cols,
-	const int dot_size,
+	const size_t rows, const size_t cols,
+	const size_t dot_size,
 	const bool weighted_pattern,
-	const std::pair<int, int> range = { 0, 255 },
+	const std::pair<size_t, size_t> range = { 0, 255 },
 	const std::pair<double, double> weight = { 1., 1. })
 {
 	return makeRandomDot(cv::Size(cols, rows), dot_size, weighted_pattern, range, weight);
 }
 
 cv::Mat makeStripe(
-	const cv::Size& size, const int stripe_width,
+	const cv::Size& size, const size_t stripe_width,
 	const bool is_vertical,
-	const std::pair<int, int> range = { 0, 255 }
+	const std::pair<size_t, size_t> range = { 0, 255 }
 	)
 {
 	cv::Mat im(size, CV_8U);
@@ -128,7 +128,7 @@ cv::Mat makeStripe(
 
 	for (int i = 0; i < length; ++i)
 	{
-		const int value = (i % (stripe_width * 2) < stripe_width ? range.first : range.second);
+		const size_t value = (i % (stripe_width * 2) < stripe_width ? range.first : range.second);
 		(is_vertical ? im.row(i) : im.col(i)) = cv::Scalar::all(value);
 	}
 	return im;
@@ -139,14 +139,46 @@ cv::Mat makeStripe(
 @overload
 */
 cv::Mat makeStripe(
-	const int rows, const int cols,
-	const int stripe_width,
+	const size_t rows, const size_t cols,
+	const size_t stripe_width,
 	const bool is_vertical,
-	const std::pair<int, int> range = { 0, 255 }
+	const std::pair<size_t, size_t> range = { 0, 255 }
 	)
 {
 	return makeStripe(cv::Size(cols, rows), stripe_width, is_vertical, range);
 }
+
+cv::Mat makeRandomStripe(
+	const size_t rows, const size_t cols,
+	const bool is_vertical,
+	const std::pair<size_t, size_t> width_range,
+	const std::pair<size_t, size_t> intensity_range = { 0, 255 }
+	)
+{
+	assert(0 < width_range.first && width_range.first < width_range.second);
+
+	std::random_device rd;
+	std::mt19937 mt(rd());
+	std::uniform_int_distribution<size_t> gen(width_range.first, width_range.second);
+	size_t w, length = (is_vertical ? rows : cols), count = 0;
+	cv::Mat im(rows, cols, CV_8U);
+	bool draw_brack = true;
+
+	while (count < length)
+	{
+		cv::Range range;
+		
+		w = gen(mt);
+		range.start = (int)count;
+		count += w;
+		range.end = std::min<int>(count, length);
+		(is_vertical ? im.rowRange(range) : im.colRange(range)) = cv::Scalar::all(draw_brack ? intensity_range.first : intensity_range.second);
+		draw_brack = !draw_brack;
+	}
+	return im;
+}
+
+
 
 }		// namespace proj
 
