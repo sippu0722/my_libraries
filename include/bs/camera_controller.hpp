@@ -195,32 +195,36 @@ struct CameraParams
 
 }
 
-inline void loadCameraParameterBase(cv::FileNode& fn, bs::CameraParams& param)
+namespace
+{
+
+inline void loadCameraParameterBase(const cv::FileNode& fn, bs::CameraParams& param)
 {
 	int tmp_serial, tmp_format;
 
-	fn["serial"]	>> tmp_serial;	param.serial = tmp_serial;
-	fn["format"]	>> tmp_format;	param.pixel_format = static_cast<fc::PixFmt>(tmp_format);
-	fn["channels"]	>> param.channels;
-	fn["size"]		>> param.size;
-	fn["shutter"]	>> param.shutter;
-	fn["gain"]		>> param.gain;
-	fn["fps"]		>> param.fps;
+	fn["serial"] >> tmp_serial;	param.serial = tmp_serial;
+	fn["format"] >> tmp_format;	param.pixel_format = static_cast<fc::PixFmt>(tmp_format);
+	fn["channels"] >> param.channels;
+	fn["size"] >> param.size;
+	fn["shutter"] >> param.shutter;
+	fn["gain"] >> param.gain;
+	fn["fps"] >> param.fps;
 	return;
 }
 
 inline void saveCameraParameterBase(cv::FileStorage& fs, const bs::CameraParams& param)
 {
-	fs << "serial"		<< (int)param.serial;
-	fs << "format"		<< (int)param.pixel_format;
-	fs << "channels"	<< param.channels;
-	fs << "size"		<< param.size;
-	fs << "shutter"		<< param.shutter;
-	fs << "gain"		<< param.gain;
-	fs << "fps"			<< param.fps;
+	fs << "serial" << (int)param.serial;
+	fs << "format" << (int)param.pixel_format;
+	fs << "channels" << param.channels;
+	fs << "size" << param.size;
+	fs << "shutter" << param.shutter;
+	fs << "gain" << param.gain;
+	fs << "fps" << param.fps;
 	return;
 }
 
+}
 
 namespace bs
 {
@@ -232,6 +236,14 @@ bool loadCameraParameter(const cv::FileStorage& fs, CameraParams& param)
 
 	return true;
 }
+
+bool loadCameraParameter(const cv::FileNode& fn, CameraParams& param)
+{
+	loadCameraParameterBase(fn, param);
+
+	return true;
+}
+
 
 bool loadStereoCameraParameter(const cv::FileStorage& fs, Stereo<CameraParams>& param)
 {
