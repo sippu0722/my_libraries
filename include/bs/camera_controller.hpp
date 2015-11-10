@@ -346,6 +346,11 @@ class CameraController
 			param_.channels = 3;
 			break;
 		}
+
+		// Capture test
+		cv::Mat dummy;
+		capture(dummy);
+
 		return;
 	}
 
@@ -551,6 +556,11 @@ public:
 			restart();
 			*this >> im;
 		}
+	}
+
+	void capture(cv::OutputArray image)
+	{
+		*this >> image;
 	}
 
 	cv::Size calcViewSize(const int width)
