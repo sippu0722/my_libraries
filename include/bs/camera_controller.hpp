@@ -701,6 +701,7 @@ public:
 
 		cam_[select].setProp(prop, value);
 
+		return true;
 	}
 
 	void setProp(const fc::Property prop, const Stereo<float> value)
