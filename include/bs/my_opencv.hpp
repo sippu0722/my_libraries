@@ -26,9 +26,9 @@ T min(cv::InputArray m)
 }
 
 void imshow(
+	const std::string winname,
 	cv::InputArray src,
 	const cv::Size dsize,
-	const std::string winname,
 	const double fx = 0.0, const double fy = 0.0,
 	const cv::InterpolationFlags interpolation = cv::INTER_LINEAR)
 {

@@ -386,19 +386,19 @@ public:
 		{
 			fc::stop(fly_);
 			fc::destroyContext(fly_);
-		}
 
-		if (!stereo_)
-		{
-			//if (!file_param_.empty())
-			//{
-			//	cv::FileStorage fs(file_param_, cv::FileStorage::WRITE);
-			//	CV_Assert(fs.isOpened());
+			if (!stereo_)
+			{
+				//if (!file_param_.empty())
+				//{
+				//	cv::FileStorage fs(file_param_, cv::FileStorage::WRITE);
+				//	CV_Assert(fs.isOpened());
 
-			//	bool complete = saveCameraParameter(fs, param_);
-			//	assert(complete || !"saveCameraParameter");
-			//}
-			std::cout << "[Camera Controller] Bye!" << std::endl;
+				//	bool complete = saveCameraParameter(fs, param_);
+				//	assert(complete || !"saveCameraParameter");
+				//}
+				std::cout << "[Camera Controller] Bye!" << std::endl;
+			}
 		}
 	}
 
@@ -597,6 +597,7 @@ class StereoCameraController
 {
 	Stereo<CameraController> cam_;
 	std::string file_param_;
+	bool need_stop_;
 
 public:
 	Stereo<CameraParams> param_;
@@ -604,10 +605,10 @@ public:
 	/*!
 	@note Change the name of parameter file path written below
 	*/
-	StereoCameraController() {}
+	StereoCameraController() : need_stop_(false) {}
 
 	StereoCameraController(const CameraParams& param_l, const CameraParams& param_r) :
-		param_({ { param_l, param_r } })
+		param_({ { param_l, param_r } }), need_stop_(true)
 	{
 		cam_[L] = *(new CameraController(param_l, true));
 		cam_[R] = *(new CameraController(param_r, true));
@@ -624,7 +625,8 @@ public:
 		//	bool complete = saveStereoCameraParameter(fs, param_);
 		//	assert(complete || !"saveStereoCameraParameter");
 		//}
-		std::cout << "[Stereo Camera Controller] Bye!" << std::endl;
+		if (need_stop_)
+			std::cout << "[Stereo Camera Controller] Bye!" << std::endl;
 	}
 
 	/*!
