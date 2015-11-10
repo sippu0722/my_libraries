@@ -37,4 +37,13 @@ void imshow(
 	cv::imshow(winname, im);
 }
 
+enum Key : int
+{
+	KEY_ESC = 27,
+	KEY_UP = 2490368,
+	KEY_DOWN = 2621440,
+	KEY_LEFT = 2424832,
+	KEY_RIGHT = 2555904
+};
+
 }	// namespace bs
