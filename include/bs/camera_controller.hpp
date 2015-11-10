@@ -307,6 +307,7 @@ class CameraController
 	std::string file_param_;
 	CameraParams param_;
 	bool stereo_;
+	bool need_stop_;
 
 	void init()
 	{
@@ -359,10 +360,10 @@ public:
 	/*!
 	@note Change the name of parameter file path written below
 	*/
-	CameraController() {}
+	CameraController() : need_stop_(false){}
 
 	CameraController(const CameraParams& param, const bool stereo = false) :
-		param_(param), stereo_(stereo)
+		param_(param), stereo_(stereo), need_stop_(true)
 	{
 		init();
 
@@ -371,7 +372,7 @@ public:
 	}
 
 	CameraController(const fc::CamSerial serial, const cv::Size size, const fc::PixFmt fmt = FLYCAPTURE_MONO8, const bool stereo = false) :
-		param_(CameraParams(serial, fmt, size))
+		param_(CameraParams(serial, fmt, size)), need_stop_(true)
 	{
 		init();
 
@@ -381,8 +382,11 @@ public:
 
 	~CameraController()
 	{
-		fc::stop(fly_);
-		fc::destroyContext(fly_);
+		if (need_stop_)
+		{
+			fc::stop(fly_);
+			fc::destroyContext(fly_);
+		}
 
 		if (!stereo_)
 		{
