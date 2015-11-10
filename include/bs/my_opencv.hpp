@@ -28,12 +28,16 @@ T min(cv::InputArray m)
 void imshow(
 	const std::string winname,
 	cv::InputArray src,
-	const cv::Size dsize,
+	const cv::Size dsize = cv::Size(),
 	const double fx = 0.0, const double fy = 0.0,
 	const cv::InterpolationFlags interpolation = cv::INTER_LINEAR)
 {
 	cv::Mat im;
-	cv::resize(src, im, dsize, fx, fy, interpolation);
+
+	if (dsize.area() == 0)
+		im = src.getMat();
+	else
+		cv::resize(src, im, dsize, fx, fy, interpolation);
 	cv::imshow(winname, im);
 }
 
