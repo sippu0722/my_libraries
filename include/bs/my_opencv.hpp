@@ -9,12 +9,20 @@
 namespace bs
 {
 
-	template<typename T>
-	inline T max(cv::InputArray m)
-	{
-		double max;
-		cv::minMaxLoc(m, nullptr, &max);
-		return static_cast<T>(max);
-	}
+template<typename T = uchar>
+inline T max(cv::InputArray m)
+{
+	double val;
+	cv::minMaxLoc(m, nullptr, &val);
+	return static_cast<T>(val);
+}
+
+template<typename T = uchar>
+inline T min(cv::InputArray m)
+{
+	double val;
+	cv::minMaxLoc(m, &val);
+	return static_cast<T>(val);
+}
 
 }	// namespace bs
