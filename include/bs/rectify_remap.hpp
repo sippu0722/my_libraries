@@ -15,10 +15,10 @@ namespace bs
 class RectifyRemap
 {
 private:
-	cv::Mat mx1;
-	cv::Mat my1;
-	cv::Mat mx2;
-	cv::Mat my2;
+	cv::Mat mx1_;
+	cv::Mat my1_;
+	cv::Mat mx2_;
+	cv::Mat my2_;
 
 	void saveBinary(const std::string file, const cv::Mat& mat)
 	{
@@ -76,66 +76,72 @@ public:
 
 	void save(const std::string dir, const std::string extention = ".bin")
 	{
-		saveBinary(dir + "mx1" + extention, mx1);
-		saveBinary(dir + "my1" + extention, my1);
-		saveBinary(dir + "mx2" + extention, mx2);
-		saveBinary(dir + "my2" + extention, my2);
+		saveBinary(dir + "mx1" + extention, mx1_);
+		saveBinary(dir + "my1" + extention, my1_);
+		saveBinary(dir + "mx2" + extention, mx2_);
+		saveBinary(dir + "my2" + extention, my2_);
 
 		return;
 	}
 
 	bool load(const std::string dir, const std::string extention = ".bin")
 	{
-		loadBinary(dir + "mx1" + extention, mx1);
-		loadBinary(dir + "my1" + extention, my1);
-		loadBinary(dir + "mx2" + extention, mx2);
-		loadBinary(dir + "my2" + extention, my2);
+		loadBinary(dir + "mx1" + extention, mx1_);
+		loadBinary(dir + "my1" + extention, my1_);
+		loadBinary(dir + "mx2" + extention, mx2_);
+		loadBinary(dir + "my2" + extention, my2_);
 
 		if (isEmpty())
+		{
+			std::cout << "[Rectify Remap] Fail to load file." << std::endl;
 			return false;
+		}
 		else
+		{
+			std::cout << "[Rectify Remap] Success load file." << std::endl;
 			return true;
+		}
 	}
 
 	void remap(cv::InputOutputArray image, const int interpolation, const bool is_left)
 	{
 		if (is_left)
-			cv::remap(image, image, mx1, my1, interpolation);
+			cv::remap(image, image, mx1_, my1_, interpolation);
 		else
-			cv::remap(image, image, mx2, my2, interpolation);
+			cv::remap(image, image, mx2_, my2_, interpolation);
 		return;
 	}
 
 	void remap(cv::InputArray im_src, cv::OutputArray im_dst, const int interpolation, const bool is_left)
 	{
 		if (is_left)
-			cv::remap(im_src, im_dst, mx1, my1, interpolation);
+			cv::remap(im_src, im_dst, mx1_, my1_, interpolation);
 		else
-			cv::remap(im_src, im_dst, mx2, my2, interpolation);
+			cv::remap(im_src, im_dst, mx2_, my2_, interpolation);
 		return;
 	}
 
 	void st_remap(const Stereo<cv::Mat>& im, const int interpolation)
 	{
-		cv::remap(im[0], im[0], mx1, my1, interpolation);
-		cv::remap(im[1], im[1], mx2, my2, interpolation);
+		cv::remap(im[0], im[0], mx1_, my1_, interpolation);
+		cv::remap(im[1], im[1], mx2_, my2_, interpolation);
 		return;
 	}
 
 	void st_remap(const Stereo<cv::Mat>& im_src, Stereo<cv::Mat>& im_dst, const int interpolation)
 	{
-		cv::remap(im_src[0], im_dst[0], mx1, my1, interpolation);
-		cv::remap(im_src[1], im_dst[1], mx2, my2, interpolation);
+		cv::remap(im_src[0], im_dst[0], mx1_, my1_, interpolation);
+		cv::remap(im_src[1], im_dst[1], mx2_, my2_, interpolation);
 		return;
 	}
 
 	bool isEmpty(void)
 	{
 		bool is_emp =
-			mx1.empty() ||
-			my1.empty() ||
-			mx2.empty() ||
-			my2.empty();
+			mx1_.empty() ||
+			my1_.empty() ||
+			mx2_.empty() ||
+			my2_.empty();
 
 		return is_emp;
 	}
