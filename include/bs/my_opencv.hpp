@@ -25,7 +25,7 @@ T min(cv::InputArray m)
 	return static_cast<T>(val);
 }
 
-void imshow(
+inline void imshow(
 	const std::string winname,
 	cv::InputArray src,
 	const cv::Size dsize = cv::Size(),
