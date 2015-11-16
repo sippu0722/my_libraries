@@ -164,24 +164,19 @@ struct CameraParams
 {
 	fc::CamSerial serial;
 	fc::PixFmt pixel_format;
-	cv::Point tl;
 	cv::Size size;
+	cv::Point tl;
 	float shutter, gain, fps;
 	int channels;
 
 	CameraParams() :
-		serial(0), pixel_format(FLYCAPTURE_MONO8), tl(cv::Point(0, 0)), size(cv::Size(0, 0)),
-		shutter(-1.f), gain(-1.f), fps(-1.f), channels(1)
+		tl(cv::Point(0, 0)), shutter(-1.f), gain(-1.f), fps(-1.f), channels(-1)
 	{}
 
 	CameraParams(
 		const fc::CamSerial _serial, const fc::PixFmt _fmt, const cv::Point _tl, const cv::Size _sz,
 		const float _shutter, const float _gain, const float _fps) :
-		serial(_serial), pixel_format(_fmt), tl(_tl), size(_sz), shutter(_shutter), gain(_gain), fps(_fps), channels(1)
-	{}
-
-	CameraParams(const fc::CamSerial _serial, const fc::PixFmt _fmt, const cv::Point _tl, const cv::Size _sz) :
-		serial(_serial), pixel_format(_fmt), tl(_tl), size(_sz), shutter(-1.f), gain(-1.f), fps(-1.f), channels(1)
+		serial(_serial), pixel_format(_fmt), tl(_tl), size(_sz), shutter(_shutter), gain(_gain), fps(_fps), channels(-1)
 	{}
 };
 
@@ -196,25 +191,48 @@ inline void loadCameraParameterBase(const cv::FileNode& fn, bs::CameraParams& pa
 
 	fn["serial"] >> tmp_serial;	param.serial = tmp_serial;
 	fn["format"] >> tmp_format;	param.pixel_format = static_cast<fc::PixFmt>(tmp_format);
-	fn["channels"] >> param.channels;
 	fn["tl"] >> param.tl;
 	fn["size"] >> param.size;
 	fn["shutter"] >> param.shutter;
 	fn["gain"] >> param.gain;
 	fn["fps"] >> param.fps;
+	fn["channels"] >> param.channels;
 	return;
 }
 
 inline void saveCameraParameterBase(cv::FileStorage& fs, const bs::CameraParams& param)
 {
+	const fc::PixFmt f = param.pixel_format;
+	int ch = param.channels;
+
+	if (ch < 0)
+	{
+		switch (f)
+		{
+		case FLYCAPTURE_MONO8:
+		case FLYCAPTURE_MONO16:
+			ch = 1;
+			break;
+
+		case FLYCAPTURE_RGB8:
+		case FLYCAPTURE_RGB16:
+		case FLYCAPTURE_BGR:
+			ch = 3;
+			break;
+
+		default:
+			break;
+		}
+	}
+
 	fs << "serial" << (int)param.serial;
 	fs << "format" << (int)param.pixel_format;
-	fs << "channels" << param.channels;
 	fs << "tl" << param.tl;
 	fs << "size" << param.size;
 	fs << "shutter" << param.shutter;
 	fs << "gain" << param.gain;
 	fs << "fps" << param.fps;
+	fs << "channels" << ch;
 	return;
 }
 
@@ -301,7 +319,6 @@ class CameraController
 	std::string file_param_;
 	CameraParams param_;
 	bool stereo_;
-	bool need_stop_;
 
 	void init()
 	{
@@ -320,27 +337,10 @@ class CameraController
 
 		setProp(param_.shutter, param_.gain, param_.fps);
 
-		switch (param_.pixel_format)
-		{
-		default:
-			param_.channels = -1;
+		if (param_.channels < 0)
 			std::cout
 				<< "[Camera Controller] Cannot set image channels." << std::endl
-				<< "                    Support only FLYCAPTURE_MONO8, FLYCAPTURE_RGB8 and 3 YUV formats." << std::endl
-				<< "                    Use that format or set channels by function CameraController::setImageChannels." << std::endl;
-			break;
-
-		case FLYCAPTURE_MONO8:
-			param_.channels = 1;
-			break;
-
-		case FLYCAPTURE_RGB8:
-		case FLYCAPTURE_411YUV8:
-		case FLYCAPTURE_422YUV8:
-		case FLYCAPTURE_444YUV8:
-			param_.channels = 3;
-			break;
-		}
+				<< "                    Set channels by function CameraController::setImageChannels." << std::endl;
 
 		// Capture test
 		cv::Mat dummy;
@@ -354,12 +354,12 @@ public:
 	/*!
 	@note Change the name of parameter file path written below
 	*/
-	CameraController() : need_stop_(false){}
+	CameraController() {}
 
 	//CameraController(const CameraController& o) {}
 
 	CameraController(const CameraParams& param, const bool stereo = false) :
-		param_(param), stereo_(stereo), need_stop_(true)
+		param_(param), stereo_(stereo)
 	{
 		init();
 
@@ -367,50 +367,24 @@ public:
 			std::cout << "[Camera Controller] Success initialize from CameraParams." << std::endl;
 	}
 
-	CameraController(const fc::CamSerial serial, const cv::Point tl, const cv::Size size, const fc::PixFmt fmt = FLYCAPTURE_MONO8, const bool stereo = false) :
-		param_(CameraParams(serial, fmt, tl, size)), need_stop_(true)
-	{
-		init();
-
-		if (!stereo_)
-			std::cout << "[Camera Controller] Success initialize from variables." << std::endl;
-	}
-
 	~CameraController()
 	{
-		if (need_stop_)
+		fc::stop(fly_);
+		fc::destroyContext(fly_);
+
+		if (!stereo_)
 		{
-			fc::stop(fly_);
-			fc::destroyContext(fly_);
+			//if (!file_param_.empty())
+			//{
+			//	cv::FileStorage fs(file_param_, cv::FileStorage::WRITE);
+			//	CV_Assert(fs.isOpened());
 
-			if (!stereo_)
-			{
-				//if (!file_param_.empty())
-				//{
-				//	cv::FileStorage fs(file_param_, cv::FileStorage::WRITE);
-				//	CV_Assert(fs.isOpened());
-
-				//	bool complete = saveCameraParameter(fs, param_);
-				//	assert(complete || !"saveCameraParameter");
-				//}
-				std::cout << "[Camera Controller] Bye!" << std::endl;
-			}
+			//	bool complete = saveCameraParameter(fs, param_);
+			//	assert(complete || !"saveCameraParameter");
+			//}
+			std::cout << "[Camera Controller] Bye!" << std::endl;
 		}
 	}
-
-	//CameraController& operator=(const CameraController& o)
-	//{
-	//	if (this->fly_ != o.fly_)
-	//	{
-	//		this->fly_ = o.fly_;
-	//		this->file_param_ = o.file_param_;
-	//		this->param_ = o.param_;
-	//		this->stereo_ = o.stereo_;
-	//		this->need_stop_ = o.need_stop_;
-	//		this->init();
-	//	}
-	//	return *this;
-	//}
 
 	/*!
 	@note Change the name of parameter file path written below
@@ -523,7 +497,7 @@ public:
 		return;
 	}
 
-	void setImageChannels(int cn)
+	void setImageChannels(const int cn)
 	{
 		param_.channels = cn;
 
