@@ -72,10 +72,10 @@ inline Error startCustomImage(
 	Context context,
 	unsigned int uiWidth,
 	unsigned int uiHeight,
-	PixFmt format = FLYCAPTURE_MONO8,
-	unsigned int uiMode = 0,
 	unsigned int uiImagePosLeft = 0,
 	unsigned int uiImagePosTop = 0,
+	PixFmt format = FLYCAPTURE_MONO8,
+	unsigned int uiMode = 0,
 	float fBandwidth = 100)
 {
 	return flycaptureStartCustomImage(
@@ -164,23 +164,24 @@ struct CameraParams
 {
 	fc::CamSerial serial;
 	fc::PixFmt pixel_format;
+	cv::Point tl;
 	cv::Size size;
 	float shutter, gain, fps;
 	int channels;
 
 	CameraParams() :
-		serial(0), pixel_format(FLYCAPTURE_MONO8), size(cv::Size(0, 0)),
+		serial(0), pixel_format(FLYCAPTURE_MONO8), tl(cv::Point(0, 0)), size(cv::Size(0, 0)),
 		shutter(-1.f), gain(-1.f), fps(-1.f), channels(1)
 	{}
 
 	CameraParams(
-		const fc::CamSerial _serial, const fc::PixFmt _fmt, const cv::Size _sz,
+		const fc::CamSerial _serial, const fc::PixFmt _fmt, const cv::Point _tl, const cv::Size _sz,
 		const float _shutter, const float _gain, const float _fps) :
-		serial(_serial), pixel_format(_fmt), size(_sz), shutter(_shutter), gain(_gain), fps(_fps), channels(1)
+		serial(_serial), pixel_format(_fmt), tl(_tl), size(_sz), shutter(_shutter), gain(_gain), fps(_fps), channels(1)
 	{}
 
-	CameraParams(const fc::CamSerial _serial, const fc::PixFmt _fmt, const cv::Size _sz) :
-		serial(_serial), pixel_format(_fmt), size(_sz), shutter(-1.f), gain(-1.f), fps(-1.f), channels(1)
+	CameraParams(const fc::CamSerial _serial, const fc::PixFmt _fmt, const cv::Point _tl, const cv::Size _sz) :
+		serial(_serial), pixel_format(_fmt), tl(_tl), size(_sz), shutter(-1.f), gain(-1.f), fps(-1.f), channels(1)
 	{}
 };
 
@@ -196,6 +197,7 @@ inline void loadCameraParameterBase(const cv::FileNode& fn, bs::CameraParams& pa
 	fn["serial"] >> tmp_serial;	param.serial = tmp_serial;
 	fn["format"] >> tmp_format;	param.pixel_format = static_cast<fc::PixFmt>(tmp_format);
 	fn["channels"] >> param.channels;
+	fn["tl"] >> param.tl;
 	fn["size"] >> param.size;
 	fn["shutter"] >> param.shutter;
 	fn["gain"] >> param.gain;
@@ -208,6 +210,7 @@ inline void saveCameraParameterBase(cv::FileStorage& fs, const bs::CameraParams&
 	fs << "serial" << (int)param.serial;
 	fs << "format" << (int)param.pixel_format;
 	fs << "channels" << param.channels;
+	fs << "tl" << param.tl;
 	fs << "size" << param.size;
 	fs << "shutter" << param.shutter;
 	fs << "gain" << param.gain;
@@ -312,7 +315,7 @@ class CameraController
 		err = fc::initFromSerial(fly_, param_.serial);
 		fc::Assert(err, "fc::initFromSerial");
 
-		err = fc::startCustomImage(fly_, param_.size.width, param_.size.height, param_.pixel_format);
+		err = fc::startCustomImage(fly_, param_.size.width, param_.size.height, param_.tl.x, param_.tl.y, param_.pixel_format);
 		fc::Assert(err, "fc::startCustomImage");
 
 		setProp(param_.shutter, param_.gain, param_.fps);
@@ -364,8 +367,8 @@ public:
 			std::cout << "[Camera Controller] Success initialize from CameraParams." << std::endl;
 	}
 
-	CameraController(const fc::CamSerial serial, const cv::Size size, const fc::PixFmt fmt = FLYCAPTURE_MONO8, const bool stereo = false) :
-		param_(CameraParams(serial, fmt, size)), need_stop_(true)
+	CameraController(const fc::CamSerial serial, const cv::Point tl, const cv::Size size, const fc::PixFmt fmt = FLYCAPTURE_MONO8, const bool stereo = false) :
+		param_(CameraParams(serial, fmt, tl, size)), need_stop_(true)
 	{
 		init();
 
