@@ -29,7 +29,7 @@ inline void imshow(
 	const std::string winname,
 	cv::InputArray src,
 	const cv::Size dsize = cv::Size(),
-	const double fx = 0.0, const double fy = 0.0,
+	const double fx = 0., const double fy = 0.,
 	const cv::InterpolationFlags interpolation = cv::INTER_LINEAR)
 {
 	cv::Mat im;
@@ -38,7 +38,28 @@ inline void imshow(
 		im = src.getMat();
 	else
 		cv::resize(src, im, dsize, fx, fy, interpolation);
+
 	cv::imshow(winname, im);
+	return;
+}
+
+inline void imwrite(
+	const std::string file,
+	cv::InputArray img,
+	const cv::Size dsize = cv::Size(),
+	const std::vector<int>& params = std::vector<int>(),
+	const double fx = 0., const double fy = 0.,
+	const cv::InterpolationFlags interpolation = cv::INTER_LINEAR))
+{
+	cv::Mat im;
+
+	if (dsize.area() == 0)
+		im = img.getMat();
+	else
+		cv::resize(img, im, dsize, fx, fy, interpolation);
+
+	cv::imwrite(file, img, params);
+	return;
 }
 
 enum Key : int
