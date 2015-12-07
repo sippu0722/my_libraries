@@ -240,26 +240,6 @@ void saveCameraParameterBase(
 namespace bs
 {
 
-void updateParameterFile(const std::string file)
-{
-	cv::FileStorage fs(file, cv::FileStorage::READ);
-
-
-
-}
-
-//bool loadCameraParameter(const cv::FileStorage& fs, CameraParams& param)
-//{
-//	cv::FileNode fn(fs.fs, nullptr);
-//	fc::
-//
-//
-//	loadCameraParameterBase(fn, param);
-//
-//	return true;
-//}
-
-
 bool loadCameraParameter(
 	const cv::FileStorage& fs,
 	fc::CameraInfo& cam_info,
@@ -273,33 +253,6 @@ bool loadCameraParameter(
 }
 
 
-//bool loadCameraParameter(const cv::FileNode& fn, CameraParams& param)
-//{
-//	loadCameraParameterBase(fn, param);
-//
-//	return true;
-//}
-
-
-//bool loadStereoCameraParameter(const cv::FileStorage& fs, Stereo<CameraParams>& param)
-//{
-//	loadCameraParameterBase(fs["left"], param[L]);
-//	loadCameraParameterBase(fs["right"], param[R]);
-//	return true;
-//}
-//
-////bool loadStereoCameraParameter(const cv::FileStorage& fs, CameraParams& param_l, CameraParams& param_r)
-////{
-////	return loadStereoCameraParameter(fs, { { param_l, param_r } });
-////}
-
-//bool saveCameraParameter(cv::FileStorage& fs, const CameraParams& param)
-//{
-//	saveCameraParameterBase(fs, param);
-//	return true;
-//}
-
-
 bool saveCameraParameter(
 	cv::FileStorage& fs,
 	const fc::CameraInfo& cam_info,
@@ -309,6 +262,7 @@ bool saveCameraParameter(
 	saveCameraParameterBase(fs, cam_info, fmt7_imset, shutter, gain, fps);
 	return true;
 }
+
 
 bool makeCameraParameterFile(
 	const std::string file_name,
@@ -342,25 +296,34 @@ bool makeCameraParameterFile(
 }
 
 
-//bool saveStereoCameraParameter(cv::FileStorage& fs, const CameraParams& param_l, const CameraParams& param_r)
-//{
-//	fs << "left" << "{";
-//	saveCameraParameterBase(fs, param_l);
-//	fs << "}";
-//
-//	fs << "right" << "{";
-//	saveCameraParameterBase(fs, param_r);
-//	fs << "}";
-//
-//	return true;
-//}
-//
-//bool saveStereoCameraParameter(cv::FileStorage& fs, const Stereo<CameraParams>& param)
-//{
-//	saveStereoCameraParameter(fs, param[L], param[R]);
-//
-//	return true;
-//}
+void updateParameterFile(const std::string file, const fc::Mode mode)
+{
+	cv::FileStorage fs(file, cv::FileStorage::READ);
+
+	int serial, offset_x, offset_y, width, height, tmp;
+	float gain, shutter, fps;
+	std::string str;
+	cv::Point tl;
+	cv::Size sz;
+
+	// load
+	fs["serial"] >> serial;
+	fs["format"] >> tmp;
+	str = fmt2str(static_cast<fc::PixelFormat>(tmp));
+
+	fs["tl"] >> tl;
+	fs["size"] >> sz;
+	fs["shutter"] >> shutter;
+	fs["gain"] >> gain;
+	fs["fps"] >> fps;
+	fs.release();
+
+	// update
+	makeCameraParameterFile(
+		file, serial, mode, static_cast<fc::PixelFormat>(tmp),
+		tl.x, tl.y, sz.width, sz.height, shutter, gain, fps);
+	return;
+}
 
 
 class Camera
@@ -401,6 +364,7 @@ public:
 	}
 };
 
+
 inline bool Camera::checkError(fc::Error error)
 {
 	if (error != fc::PGRERROR_OK)
@@ -410,6 +374,7 @@ inline bool Camera::checkError(fc::Error error)
 	}
 	return false;
 }
+
 
 inline bool Camera::connect(void)
 {
