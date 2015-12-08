@@ -49,7 +49,7 @@ inline void imwrite(
 	const cv::Size dsize = cv::Size(),
 	const std::vector<int>& params = std::vector<int>(),
 	const double fx = 0., const double fy = 0.,
-	const cv::InterpolationFlags interpolation = cv::INTER_LINEAR))
+	const cv::InterpolationFlags interpolation = cv::INTER_LINEAR)
 {
 	cv::Mat im;
 
@@ -58,7 +58,7 @@ inline void imwrite(
 	else
 		cv::resize(img, im, dsize, fx, fy, interpolation);
 
-	cv::imwrite(file, img, params);
+	cv::imwrite(file, im, params);
 	return;
 }
 
