@@ -4,8 +4,9 @@
 #include <cassert>
 
 #pragma warning(disable:4819)
-#include <opencv2/core/mat.hpp>
-#include <opencv2/core/persistence.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 #include <FlyCapture2/FlyCapture2.h>
 #pragma warning(default:4819)
 
@@ -28,46 +29,57 @@ std::string fmt2str(const fc::PixelFormat fmt)
 		break;
 
 	case fc::PIXEL_FORMAT_MONO8:			// = 0x80000000, /**< 8 bits of mono information. */
+	case 0x00000001:						// FLUCAPTURE_MONO8
 		str = "PIXEL_FORMAT_MONO8";
 		break;
 
 	case fc::PIXEL_FORMAT_411YUV8:			// = 0x40000000, /**< YUV 4:1:1. */
+	case 0x00000002:						// FLYCAPTURE_411YUV8
 		str = "PIXEL_FORMAT_411YUV8";
 		break;
 
 	case fc::PIXEL_FORMAT_422YUV8:			// = 0x20000000, /**< YUV 4:2:2. */
+	case 0x00000004:						// FLYCAPTURE_422YUV8
 		str = "PIXEL_FORMAT_422YUV8";
 		break;
 
 	case fc::PIXEL_FORMAT_444YUV8:			// = 0x10000000, /**< YUV 4:4:4. */
+	case 0x00000008:						// FLYCAPTURE_444YUV8
 		str = "PIXEL_FORMAT_444YUV8";
 		break;
 
 	case fc::PIXEL_FORMAT_RGB8:				// = 0x08000000, /**< R// = G// = B// = 8 bits. */
+	case 0x00000010:						// FLYCAPTURE_RGB8
 		str = "PIXEL_FORMAT_RGB8";
 		break;
 
 	case fc::PIXEL_FORMAT_MONO16:			// = 0x04000000, /**< 16 bits of mono information. */
+	case 0x00000020:						// FLYCAPTURE_MONO16
 		str = "PIXEL_FORMAT_MONO16";
 		break;
 
 	case fc::PIXEL_FORMAT_RGB16:			// = 0x02000000, /**< R// = G// = B// = 16 bits. */
+	case 0x00000040:						// FLYCAPTURE_RGB16
 		str = "PIXEL_FORMAT_RGB16";
 		break;
 
 	case fc::PIXEL_FORMAT_S_MONO16:			// = 0x01000000, /**< 16 bits of signed mono information. */
+	case 0x00000080:						// FLYCAPTURE_S_MONO16
 		str = "PIXEL_FORMAT_S_MONO16";
 		break;
 
 	case fc::PIXEL_FORMAT_S_RGB16:			// = 0x00800000, /**< R// = G// = B// = 16 bits signed. */
+	case 0x00000100:						// FLYCAPTURE_S_RGB16
 		str = "PIXEL_FORMAT_S_RGB16";
 		break;
 
 	case fc::PIXEL_FORMAT_RAW8:				// = 0x00400000, /**< 8 bit raw data output of sensor. */
+	case 0x00000200:						// FLYCAPTURE_RAW8
 		str = "PIXEL_FORMAT_RAW8";
 		break;
 
 	case fc::PIXEL_FORMAT_RAW16:			// = 0x00200000, /**< 16 bit raw data output of sensor. */
+	case 0x00000400:						// FLYCAPTURE_RAW16
 		str = "PIXEL_FORMAT_RAW16";
 		break;
 
@@ -80,10 +92,12 @@ std::string fmt2str(const fc::PixelFormat fmt)
 		break;
 
 	case fc::PIXEL_FORMAT_BGR:				// = 0x80000008, /**< 24 bit BGR. */
+	case 0x10000001:						// FLYCAPTURE_BGR
 		str = "PIXEL_FORMAT_BGR";
 		break;
 
 	case fc::PIXEL_FORMAT_BGRU:				// = 0x40000008, /**< 32 bit BGRU. */
+	case 0x10000002:						// FLYCAPTURE_BGRU
 		str = "PIXEL_FORMAT_BGRU";
 		break;
 
