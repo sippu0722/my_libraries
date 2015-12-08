@@ -434,6 +434,7 @@ namespace bs
 	{
 	private:
 		bool connected_;
+		cv::Size size_;
 
 	protected:
 		fc::Camera cam;
@@ -449,6 +450,7 @@ namespace bs
 		Camera(const Camera& o) : connected_(false){};
 		~Camera();
 		
+		cv::Size getSize() { return size_; };
 		void capture(fc::Image& im, const fc::PixelFormat output_format = fc::PIXEL_FORMAT_MONO8);
 		Camera& operator=(const Camera& o);
 	};
@@ -520,7 +522,7 @@ namespace bs
 		if (checkError(cam.StartCapture()))
 			return false;
 #endif
-
+		size_ = cv::Size(fmt7_imset.width, fmt7_imset.height);
 		connected_ = true;
 		return true;
 	}
@@ -558,7 +560,7 @@ namespace bs
 
 
 
-	class CameraController : Camera
+	class CameraController : public Camera
 	{
 		bool stereo_;
 		cv::Size view_sz_;
@@ -802,7 +804,7 @@ namespace bs
 
 		void				 init				 (const Stereo<fc::CameraInfo>& cam_info, const Stereo<fc::Format7ImageSettings>& fmt7_imset, const Stereo<float>& shutter, const Stereo<float>& gain, const Stereo<float>& frame_rate);
 		void				 initFromFile		 (const std::string& file);
-		//bool				 uncouple			 (std::vector<CameraController>& controller, CAM_SELECT select);
+		Stereo<cv::Size>	 getSize			 ();
 		Stereo<fc::Property> getProperty		 (const fc::PropertyType type);
 		bool				 setProperty		 (const Stereo<fc::Property>& prop);
 		bool				 setProperty		 (const fc::PropertyType type, const Stereo<float>& abs_value, const Stereo<int>& value_b = { { 0, 0 } });
@@ -865,38 +867,16 @@ namespace bs
 	}
 
 
-	//inline bool StereoCameraController::uncouple(std::vector<CameraController>& controller, CAM_SELECT select)
-	//{
-	//	bool complete;
+	inline Stereo<cv::Size> StereoCameraController::getSize()
+	{
+		Stereo<cv::Size> sz;
 
-	//	switch (select)
-	//	{
-	//	case L:
-	//		controller.resize(1);
-	//		controller[0] = cam[L];
-	//		complete = true;
-	//		break;
+		sz[L] = cam[L].getSize();
+		sz[R] = cam[R].getSize();
 
-	//	case R:
-	//		controller.resize(1);
-	//		controller[0] = cam[R];
-	//		complete = true;
-	//		break;
+		return sz;
 
-	//	case BOTH:
-	//		controller.resize(2);
-	//		controller[0] = cam[L];
-	//		controller[1] = cam[R];
-	//		complete = true;
-	//		break;
-
-	//	default:
-	//		message("in function uncouple");
-	//		complete = false;
-	//		break;
-	//	}
-	//	return complete;
-	//}
+	}
 
 
 	inline Stereo<fc::Property> StereoCameraController::getProperty(const fc::PropertyType type)
