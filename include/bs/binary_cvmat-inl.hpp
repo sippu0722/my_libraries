@@ -14,24 +14,25 @@ namespace bs
 \param[in] filename filaname to save
 \param[in] output cvmat to save
 */
-inline bool saveMatBinary(const std::string& filename, const cv::Mat& output)
+inline bool saveMatBinary(const std::string& filename, const cv::InputArray mat)
 {
+	const cv::Mat m = mat.getMat();
 	std::ofstream ofs(filename, std::ios::binary);
 
 	if (!ofs.is_open())
 		return false;
 
-	if (output.empty())
+	if (m.empty())
 	{
 		int s = 0;
 		ofs.write((const char*)(&s), sizeof(int));
 		return true;
 	}
-	int type = output.type();
-	ofs.write((const char*)(&output.rows), sizeof(int));
-	ofs.write((const char*)(&output.cols), sizeof(int));
+	int type = m.type();
+	ofs.write((const char*)(&m.rows), sizeof(int));
+	ofs.write((const char*)(&m.cols), sizeof(int));
 	ofs.write((const char*)(&type), sizeof(int));
-	ofs.write((const char*)(output.data), output.elemSize() * output.total());
+	ofs.write((const char*)(m.data), m.elemSize() * m.total());
 
 	return true;
 }
@@ -40,11 +41,12 @@ inline bool saveMatBinary(const std::string& filename, const cv::Mat& output)
 //! Load cv::Mat as binary
 /*!
 \param[in] filename filaname to load
-\param[out] output loaded cv::Mat
+\param[out] output loaded
 */
-inline bool loadMatBinary(const std::string& filename, cv::Mat& output)
+inline bool loadMatBinary(const std::string& filename, cv::OutputArray mat)
 {
 	std::ifstream ifs(filename, std::ios::binary);
+	cv::Mat m;
 
 	if (!ifs.is_open())
 		return false;
@@ -56,10 +58,10 @@ inline bool loadMatBinary(const std::string& filename, cv::Mat& output)
 	ifs.read((char*)(&cols), sizeof(int));
 	ifs.read((char*)(&type), sizeof(int));
 
-	output.release();
-	output.create(rows, cols, type);
-	ifs.read((char*)(output.data), output.elemSize() * output.total());
+	m.create(rows, cols, type);
+	ifs.read((char*)(m.data), m.elemSize() * m.total());
 
+	m.copyTo(mat);
 	return true;
 }
 

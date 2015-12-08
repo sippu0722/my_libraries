@@ -157,6 +157,14 @@ inline Error cvtImage(Context context, Image *pimageSrc, Image *pimageDest)
 
 }	// namespace fc
 
+
+inline void DbgPrint(const std::string str)
+{
+#ifdef _DEBUG
+	std::cerr << str << std::endl;
+#endif
+}
+
 namespace bs
 {
 
@@ -326,15 +334,20 @@ class CameraController
 
 		fc::Error err;
 
+		DbgPrint("[Camera Controller] *Init* serial = " + std::to_string(param_.serial));
+		DbgPrint("[Camera Controller] *Init* fc::createFonctext()");
 		err = fc::createContext(&fly_);
 		fc::Assert(err, "fc::createContext");
 
+		DbgPrint("[Camera Controller] *Init* fc::initFromSerial()");
 		err = fc::initFromSerial(fly_, param_.serial);
 		fc::Assert(err, "fc::initFromSerial");
 
+		DbgPrint("[Camera Controller] *Init* fc::startCustomImage()");
 		err = fc::startCustomImage(fly_, param_.size.width, param_.size.height, param_.tl.x, param_.tl.y, param_.pixel_format);
 		fc::Assert(err, "fc::startCustomImage");
 
+		DbgPrint("[Camera Controller] *Init* setProp()");
 		setProp(param_.shutter, param_.gain, param_.fps);
 
 		if (param_.channels < 0)
@@ -343,6 +356,7 @@ class CameraController
 				<< "                    Set channels by function CameraController::setImageChannels." << std::endl;
 
 		// Capture test
+		DbgPrint("[Camera Controller] *Init* Capture test");
 		cv::Mat dummy;
 		*this >> dummy;
 
@@ -682,7 +696,7 @@ public:
 
 	bool setProp(const fc::Property prop, const float value, CAM_SELECT select)
 	{
-		if (select != (L | R))
+		if (select != L && select != R)
 		{
 			std::cerr << "[Stereo Camera Controller] Error: argument must be 'L' or 'R'." << std::endl;
 			return false;
