@@ -87,7 +87,7 @@ namespace bs
 
 		bool connect();
 
-		bool checkError(fc::Error error);
+		bool checkError(fc::Error error) const;
 
 	public:
 		Camera() : connected_(false){};
@@ -96,7 +96,7 @@ namespace bs
 
 		~Camera();
 
-		cv::Size getSize() { return size_; };
+		cv::Size getSize() const { return size_; };
 
 		void capture(fc::Image& im, const fc::PixelFormat output_format = fc::PIXEL_FORMAT_MONO8);
 
@@ -123,7 +123,7 @@ namespace bs
 
 		bool initFromFile(const std::string& file);
 
-		fc::Property getProperty(const fc::PropertyType type);
+		fc::Property getProperty(const fc::PropertyType type) const;
 
 		bool setProperty(const fc::Property& prop);
 
@@ -135,9 +135,9 @@ namespace bs
 
 		void operator>> (cv::OutputArray image);
 
-		cv::Size calcViewSize(const unsigned int width);
+		cv::Size calcViewSize(const unsigned int width) const;
 
-		void printParameter();
+		void printParameter() const;
 
 		int show(const std::string win_name = "camera");
 	};
@@ -164,9 +164,9 @@ namespace bs
 
 		bool initFromFile(const std::string& file);
 
-		Stereo<cv::Size> getSize();
+		Stereo<cv::Size> getSize() const;
 
-		Stereo<fc::Property> getProperty(const fc::PropertyType type);
+		Stereo<fc::Property> getProperty(const fc::PropertyType type) const;
 
 		bool setProperty(const Stereo<fc::Property>& prop);
 
@@ -179,7 +179,7 @@ namespace bs
 
 		void operator>>(Stereo<cv::Mat>& image);
 
-		Stereo<cv::Size> calcViewSize(const unsigned int width);
+		Stereo<cv::Size> calcViewSize(const unsigned int width) const;
 
 		int show(const Stereo<std::string>& win_name = bs::make_Stereo<std::string>("left", "right"));
 	};
@@ -623,7 +623,7 @@ namespace bs
 		return true;
 	}
 
-	inline bool Camera::checkError(fc::Error error)
+	inline bool Camera::checkError(fc::Error error) const
 	{
 		if (error != fc::PGRERROR_OK)
 		{
@@ -715,7 +715,7 @@ namespace bs
 		return;
 	}
 
-	inline fc::Property CameraController::getProperty(const fc::PropertyType type)
+	inline fc::Property CameraController::getProperty(const fc::PropertyType type) const
 	{
 		fc::Property prop;
 
@@ -811,7 +811,7 @@ namespace bs
 		im.copyTo(image);
 	}
 
-	inline cv::Size CameraController::calcViewSize(const unsigned int width)
+	inline cv::Size CameraController::calcViewSize(const unsigned int width) const
 	{
 		unsigned int height = (fmt7_imset.height * width) / fmt7_imset.width;
 		view_sz_ = cv::Size((int)width, (int)height);
@@ -819,7 +819,7 @@ namespace bs
 		return view_sz_;
 	}
 
-	inline void CameraController::printParameter()
+	inline void CameraController::printParameter() const
 	{
 		std::cout << std::endl;
 		message("Print parameter");
@@ -911,7 +911,7 @@ namespace bs
 		return true;
 	}
 
-	inline Stereo<cv::Size> StereoCameraController::getSize()
+	inline Stereo<cv::Size> StereoCameraController::getSize() const
 	{
 		Stereo<cv::Size> sz;
 
@@ -922,7 +922,7 @@ namespace bs
 
 	}
 
-	inline Stereo<fc::Property> StereoCameraController::getProperty(const fc::PropertyType type)
+	inline Stereo<fc::Property> StereoCameraController::getProperty(const fc::PropertyType type) const
 	{
 		Stereo<fc::Property> prop;
 
@@ -1014,7 +1014,7 @@ namespace bs
 		return;
 	}
 
-	inline Stereo<cv::Size> StereoCameraController::calcViewSize(const unsigned int width)
+	inline Stereo<cv::Size> StereoCameraController::calcViewSize(const unsigned int width) const
 	{
 		view_sz_[L] = cam[L].calcViewSize(width);
 		view_sz_[R] = cam[R].calcViewSize(width);
