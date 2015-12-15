@@ -26,17 +26,3 @@ namespace bs
 		return st;
 	}
 }
-
-//template<class T>
-//class Stereo
-//{
-//private:
-//	T left;
-//	T right;
-//
-//public:
-//	Stereo(){};
-//	Stereo(const Stereo& o){};
-//
-//
-//};

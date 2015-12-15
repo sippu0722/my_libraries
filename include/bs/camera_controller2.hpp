@@ -45,7 +45,8 @@ namespace bs
 	bool loadStereoCameraParameter(const cv::FileStorage& fs,
 								   Stereo<fc::CameraInfo>& cam_info,
 								   Stereo<fc::Format7ImageSettings>& fmt7_imset,
-								   Stereo<float>& shutter, Stereo<float>& gain, Stereo<float>& frame_rate);
+								   Stereo<float>& shutter, Stereo<float>& gain,
+								   Stereo<float>& frame_rate);
 
 	bool saveStereoCameraParameter(cv::FileStorage& fs,
 								   const Stereo<fc::CameraInfo>& cam_info,
@@ -60,8 +61,10 @@ namespace bs
 								 const float shutter, const float gain, const float frame_rate);
 
 	bool makeStereoCameraParameterFile(const std::string& file_name, const Stereo<unsigned int> serial,
-									   const Stereo<fc::Mode> mode, const Stereo<fc::PixelFormat> pixel_format,
-									   const Stereo<unsigned int> offset_x, const Stereo<unsigned int> offset_y,
+									   const Stereo<fc::Mode> mode,
+									   const Stereo<fc::PixelFormat> pixel_format,
+									   const Stereo<unsigned int> offset_x,
+									   const Stereo<unsigned int> offset_y,
 									   const Stereo<unsigned int> width, const Stereo<unsigned int> height,
 									   const Stereo<float> shutter, const Stereo<float> gain,
 									   const Stereo<float> frame_rate);
@@ -178,7 +181,7 @@ namespace bs
 
 		Stereo<cv::Size> calcViewSize(const unsigned int width);
 
-		int show(const Stereo<std::string>& win_name = { { "left", "right" } });
+		int show(const Stereo<std::string>& win_name = bs::make_Stereo<std::string>("left", "right"));
 	};
 }
 
