@@ -15,10 +15,171 @@
 
 namespace fc = FlyCapture2;
 
+
+void bs__loadCameraParameterBase(const cv::FileNode& fn,
+								 fc::CameraInfo& cam_info,
+								 fc::Format7ImageSettings& fmt7_imset,
+								 float& shutter, float& gain, float& frame_rate);
+
+void bs__saveCameraParameterBase(cv::FileStorage& fs,
+								 const fc::CameraInfo& cam_info,
+								 const fc::Format7ImageSettings& fmt7_imset,
+								 const float shutter, const float gain, const float frame_rate);
+
 namespace bs
 {
 	std::string fmt2str(const fc::PixelFormat fmt);
+
 	fc::PixelFormat str2fmt(const std::string& str);
+
+	bool loadCameraParameter(const cv::FileNode& fs,
+							 fc::CameraInfo& cam_info,
+							 fc::Format7ImageSettings& fmt7_imset,
+							 float& shutter, float& gain, float& frame_rate);
+
+	bool saveCameraParameter(cv::FileStorage& fs,
+							 const fc::CameraInfo& cam_info,
+							 const fc::Format7ImageSettings& fmt7_imset,
+							 const float shutter, const float gain, const float frame_rate);
+
+	bool loadStereoCameraParameter(const cv::FileStorage& fs,
+								   Stereo<fc::CameraInfo>& cam_info,
+								   Stereo<fc::Format7ImageSettings>& fmt7_imset,
+								   Stereo<float>& shutter, Stereo<float>& gain, Stereo<float>& frame_rate);
+
+	bool saveStereoCameraParameter(cv::FileStorage& fs,
+								   const Stereo<fc::CameraInfo>& cam_info,
+								   const Stereo<fc::Format7ImageSettings>& fmt7_imset,
+								   const Stereo<float>& shutter, const Stereo<float>& gain,
+								   const Stereo<float>& frame_rate);
+
+	bool makeCameraParameterFile(const std::string& file_name, const unsigned int serial,
+								 const fc::Mode mode, const fc::PixelFormat pixel_format,
+								 const unsigned int offset_x, const unsigned int offset_y,
+								 const unsigned int width, const unsigned int height,
+								 const float shutter, const float gain, const float frame_rate);
+
+	bool makeStereoCameraParameterFile(const std::string& file_name, const Stereo<unsigned int> serial,
+									   const Stereo<fc::Mode> mode, const Stereo<fc::PixelFormat> pixel_format,
+									   const Stereo<unsigned int> offset_x, const Stereo<unsigned int> offset_y,
+									   const Stereo<unsigned int> width, const Stereo<unsigned int> height,
+									   const Stereo<float> shutter, const Stereo<float> gain,
+									   const Stereo<float> frame_rate);
+
+	void updateCameraParameterFile(const std::string& file, const fc::Mode mode);
+
+	void updateStereoCameraParameterFile(const std::string& file, const Stereo<fc::Mode>& mode);
+
+
+	class Camera
+	{
+	private:
+		bool connected_;
+		cv::Size size_;
+
+	protected:
+		fc::Camera cam;
+		fc::CameraInfo cam_info;
+		fc::Format7ImageSettings fmt7_imset;
+
+		bool connect();
+
+		bool checkError(fc::Error error);
+
+	public:
+		Camera() : connected_(false){};
+
+		Camera(const Camera& o) : connected_(false){};
+
+		~Camera();
+
+		cv::Size getSize() { return size_; };
+
+		void capture(fc::Image& im, const fc::PixelFormat output_format = fc::PIXEL_FORMAT_MONO8);
+
+		Camera& operator=(const Camera& o);
+	};
+
+
+	class CameraController : public Camera
+	{
+		bool stereo_;
+		cv::Size view_sz_;
+
+		void message(const std::string& str);
+
+	public:
+		CameraController() {}
+
+		CameraController(const std::string& file_param);
+
+		~CameraController() { if (!stereo_) message("Bye!"); }
+
+		bool init(const fc::CameraInfo& cam_info, const fc::Format7ImageSettings& fmt7imset,
+				  const float shutter, const float gain, const float frame_rate, const bool stereo);
+
+		bool initFromFile(const std::string& file);
+
+		fc::Property getProperty(const fc::PropertyType type);
+
+		bool setProperty(const fc::Property& prop);
+
+		bool setProperty(const fc::PropertyType type, const float abs_value, const int value_b = 0);
+
+		bool setProperty(const fc::PropertyType type, const bool is_auto);
+
+		bool setPropertyFromFile(const std::string& file_param);
+
+		void operator>> (cv::OutputArray image);
+
+		cv::Size calcViewSize(const unsigned int width);
+
+		void printParameter();
+
+		int show(const std::string win_name = "camera");
+	};
+
+
+	class StereoCameraController
+	{
+		Stereo<CameraController> cam;
+		Stereo<cv::Size> view_sz_;
+
+		void message(const std::string& str);
+
+	public:
+		StereoCameraController(){};
+
+		StereoCameraController(const std::string& file_param);
+
+		~StereoCameraController(){};
+
+		bool init(const Stereo<fc::CameraInfo>& cam_info,
+				  const Stereo<fc::Format7ImageSettings>& fmt7_imset,
+				  const Stereo<float>& shutter, const Stereo<float>& gain,
+				  const Stereo<float>& frame_rate);
+
+		bool initFromFile(const std::string& file);
+
+		Stereo<cv::Size> getSize();
+
+		Stereo<fc::Property> getProperty(const fc::PropertyType type);
+
+		bool setProperty(const Stereo<fc::Property>& prop);
+
+		bool setProperty(const fc::PropertyType type, const Stereo<float>& abs_value,
+						 const Stereo<int>& value_b = { { 0, 0 } });
+
+		bool setProperty(const fc::PropertyType type, const bool is_auto);
+
+		bool setPropertyFromFile(const std::string& file_param);
+
+		void operator>>(Stereo<cv::Mat>& image);
+
+		Stereo<cv::Size> calcViewSize(const unsigned int width);
+
+		int show(const Stereo<std::string>& win_name = { { "left", "right" } });
+	};
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -81,10 +242,6 @@ void bs__saveCameraParameterBase(
 
 	return;
 }
-
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace bs
 {
@@ -197,7 +354,6 @@ namespace bs
 		return str;
 	}
 
-
 	fc::PixelFormat str2fmt(const std::string& str)
 	{
 		if		(str == "PIXEL_FORMAT_MONO8")			return fc::PIXEL_FORMAT_MONO8;
@@ -223,48 +379,39 @@ namespace bs
 		else											return fc::UNSPECIFIED_PIXEL_FORMAT;
 	}
 
-
-	bool loadCameraParameter(
-		const cv::FileStorage& fs,
-		fc::CameraInfo& cam_info,
-		fc::Format7ImageSettings& fmt7_imset,
-		float& shutter, float& gain, float& frame_rate)
+	bool loadCameraParameter(const cv::FileNode& fs, fc::CameraInfo& cam_info, fc::Format7ImageSettings& fmt7_imset, float& shutter, float& gain, float& frame_rate)
 	{
+		const unsigned int uintmax = std::numeric_limits<unsigned int>::max();
 		cv::FileNode fn(fs.fs, nullptr);
+
+		cam_info.serialNumber = uintmax;
 		bs__loadCameraParameterBase(fn, cam_info, fmt7_imset, shutter, gain, frame_rate);
 
-		return true;
+		return (cam_info.serialNumber == uintmax ? false : true);
 	}
 
-
-	bool saveCameraParameter(
-		cv::FileStorage& fs,
-		const fc::CameraInfo& cam_info,
-		const fc::Format7ImageSettings& fmt7_imset,
-		const float shutter, const float gain, const float frame_rate)
+	bool saveCameraParameter(cv::FileStorage& fs, const fc::CameraInfo& cam_info, const fc::Format7ImageSettings& fmt7_imset, const float shutter, const float gain, const float frame_rate)
 	{
 		bs__saveCameraParameterBase(fs, cam_info, fmt7_imset, shutter, gain, frame_rate);
 		return true;
 	}
 
-
-	bool loadStereoCameraParameter(
-		const cv::FileStorage& fs,
-		Stereo<fc::CameraInfo>& cam_info,
-		Stereo<fc::Format7ImageSettings>& fmt7_imset,
-		Stereo<float>& shutter, Stereo<float>& gain, Stereo<float>& frame_rate)
+	bool loadStereoCameraParameter(const cv::FileStorage& fs, Stereo<fc::CameraInfo>& cam_info, Stereo<fc::Format7ImageSettings>& fmt7_imset, Stereo<float>& shutter, Stereo<float>& gain, Stereo<float>& frame_rate)
 	{
+		const unsigned int uintmax = std::numeric_limits<unsigned int>::max();
+
+		cam_info[L].serialNumber = cam_info[R].serialNumber = uintmax;
+
 		bs__loadCameraParameterBase(fs["left"], cam_info[L], fmt7_imset[L], shutter[L], gain[L], frame_rate[L]);
 		bs__loadCameraParameterBase(fs["right"], cam_info[R], fmt7_imset[R], shutter[R], gain[R], frame_rate[R]);
-		return true;
+
+		if (cam_info[L].serialNumber == uintmax || cam_info[R].serialNumber == uintmax)
+			return false;
+		else
+			return true;
 	}
 
-
-	bool saveStereoCameraParameter(
-		cv::FileStorage& fs,
-		const Stereo<fc::CameraInfo>& cam_info,
-		const Stereo<fc::Format7ImageSettings>& fmt7_imset,
-		const Stereo<float>& shutter, const Stereo<float>& gain, const Stereo<float>& frame_rate)
+	bool saveStereoCameraParameter(cv::FileStorage& fs, const Stereo<fc::CameraInfo>& cam_info, const Stereo<fc::Format7ImageSettings>& fmt7_imset, const Stereo<float>& shutter, const Stereo<float>& gain, const Stereo<float>& frame_rate)
 	{
 		fs << "left" << "{";
 		bs__saveCameraParameterBase(fs, cam_info[L], fmt7_imset[L], shutter[L], gain[L], frame_rate[L]);
@@ -277,19 +424,7 @@ namespace bs
 		return true;
 	}
 
-
-	bool makeCameraParameterFile(
-		const std::string& file_name,
-		const unsigned int serial,
-		const fc::Mode mode,
-		const fc::PixelFormat pixel_format,
-		const unsigned int offset_x,
-		const unsigned int offset_y,
-		const unsigned int width,
-		const unsigned int height,
-		const float shutter,
-		const float gain,
-		const float frame_rate)
+	bool makeCameraParameterFile(const std::string& file_name, const unsigned int serial, const fc::Mode mode, const fc::PixelFormat pixel_format, const unsigned int offset_x, const unsigned int offset_y, const unsigned int width, const unsigned int height, const float shutter, const float gain, const float frame_rate)
 	{
 		cv::FileStorage fs(file_name, cv::FileStorage::WRITE);
 		CV_Assert(fs.isOpened());
@@ -309,19 +444,7 @@ namespace bs
 		return true;
 	}
 
-
-	bool makeStereoCameraParameterFile(
-		const std::string& file_name,
-		const Stereo<unsigned int> serial,
-		const Stereo<fc::Mode> mode,
-		const Stereo<fc::PixelFormat> pixel_format,
-		const Stereo<unsigned int> offset_x,
-		const Stereo<unsigned int> offset_y,
-		const Stereo<unsigned int> width,
-		const Stereo<unsigned int> height,
-		const Stereo<float> shutter,
-		const Stereo<float> gain,
-		const Stereo<float> frame_rate)
+	bool makeStereoCameraParameterFile(const std::string& file_name, const Stereo<unsigned int> serial, const Stereo<fc::Mode> mode, const Stereo<fc::PixelFormat> pixel_format, const Stereo<unsigned int> offset_x, const Stereo<unsigned int> offset_y, const Stereo<unsigned int> width, const Stereo<unsigned int> height, const Stereo<float> shutter, const Stereo<float> gain, const Stereo<float> frame_rate)
 	{
 		cv::FileStorage fs(file_name, cv::FileStorage::WRITE);
 		CV_Assert(fs.isOpened());
@@ -348,7 +471,6 @@ namespace bs
 		saveStereoCameraParameter(fs, ci, is, shutter, gain, frame_rate);
 		return true;
 	}
-
 
 	void updateCameraParameterFile(const std::string& file, const fc::Mode mode)
 	{
@@ -378,7 +500,6 @@ namespace bs
 			tl.x, tl.y, sz.width, sz.height, shutter, gain, frame_rate);
 		return;
 	}
-
 
 	void updateStereoCameraParameterFile(const std::string& file, const Stereo<fc::Mode>& mode)
 	{
@@ -429,33 +550,6 @@ namespace bs
 	}
 
 
-
-	class Camera
-	{
-	private:
-		bool connected_;
-		cv::Size size_;
-
-	protected:
-		fc::Camera cam;
-
-		fc::CameraInfo cam_info;
-		fc::Format7ImageSettings fmt7_imset;
-
-		bool connect();
-		bool checkError(fc::Error error);
-
-	public:
-		Camera() : connected_(false){};
-		Camera(const Camera& o) : connected_(false){};
-		~Camera();
-		
-		cv::Size getSize() { return size_; };
-		void capture(fc::Image& im, const fc::PixelFormat output_format = fc::PIXEL_FORMAT_MONO8);
-		Camera& operator=(const Camera& o);
-	};
-
-
 	inline Camera::~Camera()
 	{
 		if (connected_)
@@ -465,8 +559,7 @@ namespace bs
 		}
 	}
 
-
-	inline bool Camera::connect(void)
+	inline bool Camera::connect()
 	{
 		fc::BusManager mgr;
 		fc::PGRGuid guid;
@@ -527,7 +620,6 @@ namespace bs
 		return true;
 	}
 
-
 	inline bool Camera::checkError(fc::Error error)
 	{
 		if (error != fc::PGRERROR_OK)
@@ -538,7 +630,6 @@ namespace bs
 		return false;
 	}
 
-
 	inline void Camera::capture(fc::Image& im, const fc::PixelFormat output_format)
 	{
 		fc::Image raw_im;
@@ -547,7 +638,6 @@ namespace bs
 
 		return;
 	}
-
 
 	inline Camera& Camera::operator=(const Camera& o)
 	{
@@ -559,33 +649,11 @@ namespace bs
 	}
 
 
-
-	class CameraController : public Camera
+	inline CameraController::CameraController(const std::string& file_param) : stereo_(false)
 	{
-		bool stereo_;
-		cv::Size view_sz_;
-
-		void message(const std::string& str);
-		void error(const std::string& str);
-
-	public:
-		CameraController() {}
-		CameraController(const std::string& file_param) : stereo_(false) { initFromFile(file_param); }
-		~CameraController() { if (!stereo_) message("Bye!"); }
-
-		void		 init(const fc::CameraInfo& cam_info, const fc::Format7ImageSettings& fmt7imset, const float shutter, const float gain, const float frame_rate, const bool stereo);
-		void		 initFromFile(const std::string& file);
-		fc::Property getProperty(const fc::PropertyType type);
-		bool		 setProperty(const fc::Property& prop);
-		bool		 setProperty(const fc::PropertyType type, const float abs_value, const int value_b = 0);
-		bool		 setProperty(const fc::PropertyType type, const bool is_auto);
-		bool		 setPropertyFromFile(const std::string& file_param);
-		void		 operator>>			 (cv::OutputArray image);
-		cv::Size	 calcViewSize(const unsigned int width);
-		void		 printParameter();
-		void		 show(const std::string win_name = "camera", cv::OutputArray latest_image = cv::Mat());
-	};
-
+		if (!initFromFile(file_param))
+			abort();
+	}
 
 	inline void CameraController::message(const std::string& str)
 	{
@@ -593,26 +661,17 @@ namespace bs
 		return;
 	}
 
-
-	inline void CameraController::error(const std::string& str)
-	{
-		std::cerr << std::endl << "[Camera Controller] Error: " << str << std::endl;
-		exit(-1);
-	}
-
-
-	inline void CameraController::init(
-		const fc::CameraInfo& _cam_info,
-		const fc::Format7ImageSettings& _fmt7_imset,
-		const float shutter, const float gain, const float frame_rate,
-		const bool stereo)
+	inline bool CameraController::init(const fc::CameraInfo& _cam_info,const fc::Format7ImageSettings& _fmt7_imset, const float shutter, const float gain, const float frame_rate, const bool stereo)
 	{
 		cam_info = _cam_info;
 		fmt7_imset = _fmt7_imset;
 		stereo_ = stereo;
 
 		if (!connect())
-			error("Cannot connect to the camera.");
+		{
+			message("Error: Cannot connect to the camera.");
+			return false;
+		}
 
 		setProperty(fc::SHUTTER, shutter);
 		setProperty(fc::GAIN, gain);
@@ -620,24 +679,30 @@ namespace bs
 
 		if (!stereo_)
 			message("Success initialize.");
-		return;
-
+		return true;
 	}
 
-
-	inline void CameraController::initFromFile(const std::string& file)
+	inline bool CameraController::initFromFile(const std::string& file)
 	{
 		float shutter, gain, frame_rate;
 		cv::FileStorage fs(file, cv::FileStorage::READ);
 		CV_Assert(fs.isOpened());
 
-		bool complete = loadCameraParameter(fs, cam_info, fmt7_imset, shutter, gain, frame_rate);
+		cv::FileNode fn(fs.fs, nullptr);
+
+		bool complete = loadCameraParameter(fn, cam_info, fmt7_imset, shutter, gain, frame_rate);
 
 		if (!complete)
-			error("Cannot load camera parameter from file.");
+		{
+			message("Error: Cannot load camera parameter from file.");
+			return false;
+		}
 
 		if (!connect())
-			error("Cannot connect to the camera.");
+		{
+			message("Error: Cannot connect to the camera.");
+			return false;
+		}
 
 		setProperty(fc::SHUTTER, shutter);
 		setProperty(fc::GAIN, gain);
@@ -646,7 +711,6 @@ namespace bs
 		message("Success initialize from file.");
 		return;
 	}
-
 
 	inline fc::Property CameraController::getProperty(const fc::PropertyType type)
 	{
@@ -657,12 +721,10 @@ namespace bs
 		return prop;
 	}
 
-
 	inline bool CameraController::setProperty(const fc::Property& prop)
 	{
 		return checkError(cam.SetProperty(&prop));
 	}
-
 
 	inline bool CameraController::setProperty(const fc::PropertyType type, const float abs_value, const int value_b)
 	{
@@ -683,7 +745,6 @@ namespace bs
 		return setProperty(prop);
 	}
 
-
 	inline bool CameraController::setProperty(const fc::PropertyType type, const bool is_auto)
 	{
 		auto prop = getProperty(type);
@@ -694,13 +755,12 @@ namespace bs
 
 		if (!info.autoSupported)
 		{
-			error("Auto is not supported");
+			message("Error: Auto is not supported");
 			return false;
 		}
 		prop.autoManualMode = is_auto;
 		return setProperty(prop);
 	}
-
 
 	inline bool CameraController::setPropertyFromFile(const std::string& file_param)
 	{
@@ -710,9 +770,11 @@ namespace bs
 		cv::FileStorage fs(file_param, cv::FileStorage::READ);
 		CV_Assert(fs.isOpened());
 
-		if (!bs::loadCameraParameter(fs, cam_info, fmt7_imset, shutter, gain, frame_rate))
+		cv::FileNode fn(fs.fs, nullptr);
+
+		if (!bs::loadCameraParameter(fn, cam_info, fmt7_imset, shutter, gain, frame_rate))
 		{
-			message("Cannot load parameter file");
+			message("Error: Cannot load parameter file");
 			return false;
 		}
 		setProperty(fc::SHUTTER, shutter);
@@ -721,7 +783,6 @@ namespace bs
 
 		return true;
 	}
-
 
 	inline void CameraController::operator>>(cv::OutputArray image)
 	{
@@ -747,7 +808,6 @@ namespace bs
 		im.copyTo(image);
 	}
 
-
 	inline cv::Size CameraController::calcViewSize(const unsigned int width)
 	{
 		unsigned int height = (fmt7_imset.height * width) / fmt7_imset.width;
@@ -756,17 +816,23 @@ namespace bs
 		return view_sz_;
 	}
 
-
 	inline void CameraController::printParameter()
 	{
 		std::cout << std::endl;
 		message("Print parameter");
 
-
+		std::cout
+			<< "Serial number | " << cam_info.serialNumber << std::endl
+			<< "Model         | " << cam_info.modelName << std::endl
+			<< "Pixel format  | " << bs::fmt2str(fmt7_imset.pixelFormat) << std::endl
+			<< "Resolution    | [" << fmt7_imset.width << ", " << fmt7_imset.height << "]" << std::endl
+			<< "Shutter       | " << getProperty(fc::SHUTTER).absValue << std::endl
+			<< "Gain          | " << getProperty(fc::GAIN).absValue << std::endl
+			<< "Frame rate    | " << getProperty(fc::FRAME_RATE).absValue << std::endl;
+		return;
 	}
 
-
-	inline void CameraController::show(const std::string win_name, cv::OutputArray latest_image)
+	inline int CameraController::show(const std::string win_name)
 	{
 		cv::Mat im, view;
 		int key = -1;
@@ -781,41 +847,15 @@ namespace bs
 			cv::imshow(win_name, view);
 			key = cv::waitKey(2);
 		}
-
-		if (latest_image.empty())
-			return;
-		im.copyTo(latest_image);
+		return key;
 	}
 
 
-
-	class StereoCameraController
+	inline StereoCameraController::StereoCameraController(const std::string& file_param)
 	{
-		Stereo<CameraController> cam;
-		Stereo<cv::Size> view_sz_;
-
-		void message(const std::string& str);
-		void error(const std::string& str);
-
-	public:
-		StereoCameraController(){};
-		StereoCameraController(const std::string& file_param) { initFromFile(file_param); }
-		~StereoCameraController(){};
-
-		void				 init				 (const Stereo<fc::CameraInfo>& cam_info, const Stereo<fc::Format7ImageSettings>& fmt7_imset, const Stereo<float>& shutter, const Stereo<float>& gain, const Stereo<float>& frame_rate);
-		void				 initFromFile		 (const std::string& file);
-		Stereo<cv::Size>	 getSize			 ();
-		Stereo<fc::Property> getProperty		 (const fc::PropertyType type);
-		bool				 setProperty		 (const Stereo<fc::Property>& prop);
-		bool				 setProperty		 (const fc::PropertyType type, const Stereo<float>& abs_value, const Stereo<int>& value_b = { { 0, 0 } });
-		bool				 setProperty		 (const fc::PropertyType type, const bool is_auto);
-		bool				 setPropertyFromFile (const std::string& file_param);
-		void				 operator>>			 (Stereo<cv::Mat>& image);
-		Stereo<cv::Size>	 calcViewSize		 (const unsigned int width);
-		void				 show				 (const Stereo<std::string>& win_name = { { "left", "right" } });
-		void				 show				 (Stereo<cv::Mat>& latest_image, const Stereo<std::string>& win_name = { { "left", "right" } });
-	};
-
+		if (!initFromFile(file_param))
+			abort();
+	}
 
 	inline void StereoCameraController::message(const std::string& str)
 	{
@@ -823,30 +863,23 @@ namespace bs
 		return;
 	}
 
-
-	inline void StereoCameraController::error(const std::string& str)
+	inline bool StereoCameraController::init(const Stereo<fc::CameraInfo>& cam_info, const Stereo<fc::Format7ImageSettings>& fmt7_imset, const Stereo<float>& shutter, const Stereo<float>& gain, const Stereo<float>& frame_rate)
 	{
-		std::cerr << std::endl << "[Stereo Camera Controller] Error: " << str << std::endl;
-		exit(-1);
-	}
+		bool complete;
 
+		complete = cam[L].init(cam_info[L], fmt7_imset[L], shutter[L], gain[L], frame_rate[L], true);
+		complete = cam[R].init(cam_info[R], fmt7_imset[R], shutter[R], gain[R], frame_rate[R], true) & complete;
 
-	inline void StereoCameraController::init(
-		const Stereo<fc::CameraInfo>& cam_info,
-		const Stereo<fc::Format7ImageSettings>& fmt7_imset,
-		const Stereo<float>& shutter,
-		const Stereo<float>& gain,
-		const Stereo<float>& frame_rate)
-	{
-		cam[L].init(cam_info[L], fmt7_imset[L], shutter[L], gain[L], frame_rate[L], true);
-		cam[R].init(cam_info[R], fmt7_imset[R], shutter[R], gain[R], frame_rate[R], true);
+		if (!complete)
+		{
+			message("Error: Initialize failed.");
+			return false;
+		}
 		message("Success initialize.");
-		return;
-
+		return true;
 	}
 
-
-	inline void StereoCameraController::initFromFile(const std::string& file)
+	inline bool StereoCameraController::initFromFile(const std::string& file)
 	{
 		cv::FileStorage fs(file, cv::FileStorage::READ);
 		CV_Assert(fs.isOpened());
@@ -858,14 +891,22 @@ namespace bs
 		bool complete = loadStereoCameraParameter(fs, cam_info, fmt7_imset, shutter, gain, frame_rate);
 
 		if (!complete)
-			error("Cannot load camera parameter from file.");
+		{
+			message("Error: Cannot load parameter from file.");
+			return false;
+		}
 
-		cam[L].init(cam_info[L], fmt7_imset[L], shutter[L], gain[L], frame_rate[L], true);
-		cam[R].init(cam_info[R], fmt7_imset[R], shutter[R], gain[R], frame_rate[R], true);
+		complete = cam[L].init(cam_info[L], fmt7_imset[L], shutter[L], gain[L], frame_rate[L], true);
+		complete = cam[R].init(cam_info[R], fmt7_imset[R], shutter[R], gain[R], frame_rate[R], true) & complete;
+
+		if (!complete)
+		{
+			message("Error: Initialize failed.");
+			return false;
+		}
 		message("Success initialize from file.");
-		return;
+		return true;
 	}
-
 
 	inline Stereo<cv::Size> StereoCameraController::getSize()
 	{
@@ -878,7 +919,6 @@ namespace bs
 
 	}
 
-
 	inline Stereo<fc::Property> StereoCameraController::getProperty(const fc::PropertyType type)
 	{
 		Stereo<fc::Property> prop;
@@ -887,7 +927,6 @@ namespace bs
 		prop[R] = cam[R].getProperty(type);
 		return prop;
 	}
-
 
 	inline bool StereoCameraController::setProperty(const Stereo<fc::Property>& prop)
 	{
@@ -907,10 +946,7 @@ namespace bs
 		return complete;
 	}
 
-
-	inline bool StereoCameraController::setProperty(
-		const fc::PropertyType type,
-		const Stereo<float>& abs_value, const Stereo<int>& value_b)
+	inline bool StereoCameraController::setProperty(const fc::PropertyType type, const Stereo<float>& abs_value, const Stereo<int>& value_b)
 	{
 		bool complete = true;
 
@@ -927,7 +963,6 @@ namespace bs
 		}
 		return complete;
 	}
-
 
 	inline bool StereoCameraController::setProperty(const fc::PropertyType type, const bool is_auto)
 	{
@@ -946,7 +981,6 @@ namespace bs
 		}
 		return complete;
 	}
-
 
 	inline bool StereoCameraController::setPropertyFromFile(const std::string& file_param)
 	{
@@ -970,14 +1004,12 @@ namespace bs
 		return true;
 	}
 
-
 	inline void StereoCameraController::operator>>(Stereo<cv::Mat>& image)
 	{
 		cam[L] >> image[L];
 		cam[R] >> image[R];
 		return;
 	}
-
 
 	inline Stereo<cv::Size> StereoCameraController::calcViewSize(const unsigned int width)
 	{
@@ -986,8 +1018,7 @@ namespace bs
 		return view_sz_;
 	}
 
-
-	inline void StereoCameraController::show(const Stereo<std::string>& win_name)
+	inline int StereoCameraController::show(const Stereo<std::string>& win_name)
 	{
 		Stereo<cv::Mat> im, view;
 		int key = -1;
@@ -1008,36 +1039,6 @@ namespace bs
 
 			key = cv::waitKey(2);
 		}
-		return;
+		return key;
 	}
-
-
-	inline void StereoCameraController::show(
-		Stereo<cv::Mat>& latest_image,
-		const Stereo<std::string>& win_name)
-	{
-		Stereo<cv::Mat> im, view;
-		int key = -1;
-		auto sz = calcViewSize(640);
-
-		sz[L] = (view_sz_[L].area() != 0 ? view_sz_[L] : sz[L]);
-		sz[R] = (view_sz_[R].area() != 0 ? view_sz_[R] : sz[R]);
-
-		while (key != -1)
-		{
-			cam[L] >> im[L];
-			cv::resize(im[L], view[L], sz[L]);
-			cv::imshow(win_name[L], view[L]);
-
-			cam[R] >> im[R];
-			cv::resize(im[R], view[R], sz[R]);
-			cv::imshow(win_name[R], view[R]);
-
-			key = cv::waitKey(2);
-		}
-		im[L].copyTo(latest_image[L]);
-		im[R].copyTo(latest_image[R]);
-		return;
-	}
-
 }
