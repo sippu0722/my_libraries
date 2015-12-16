@@ -12,15 +12,18 @@ bool bs__isGoodFlow(const std::vector<cv::Point2f>& flow, const double ang_th = 
 
 namespace bs
 {
-	void rmBadFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& src,
-				   Stereo<std::vector<std::vector<cv::Point2f>>>& dst);
+	class OpticalFlow
+	{
+	public:
+		cv::Point2f point;
+		double magnitude, angle;
 
-	/*!
-	std::pair<double, double> means { Magnitude, Angle }
-	*/
-	void integrateFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& pixel_set,
-					   Stereo<std::vector<std::pair<double, double>>>& dst_flow);
-
+		std::ostream& operator<< (std::ostream& os)
+		{
+			os << "[mag, ang] = [" << this->magnitude << ", " << this->angle << "] from " << this->point;
+			return os;
+		}
+	};
 
 	class OpticalFlowApp
 	{
@@ -72,67 +75,12 @@ namespace bs
 		Stereo<std::vector<cv::Point2f>> getPointsAtOneComputing(const size_t index) const;
 	};
 
+	void rmBadFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& src,
+		Stereo<std::vector<std::vector<cv::Point2f>>>& dst);
 
-	void rmBadFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& src, Stereo<std::vector<std::vector<cv::Point2f>>>& dst)
-	{
-		const size_t numof_computings = src[L].size();
-		const Stereo<size_t> numof_pixels = { src[L][0].size(), src[R][0].size() };
-		size_t numof_good_flow = 0;
+	void integrateFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& pixel_set,
+		Stereo<std::vector<OpticalFlow>>& dst_flow);
 
-		for (size_t lr = 0; lr < 2; ++lr)
-		{
-			std::vector<size_t> lut;
-
-			for (size_t j = 0; j < numof_pixels[lr]; ++j)
-			{
-				std::vector<cv::Point2f> flow(numof_computings);
-
-				for (size_t k = 0; k < numof_computings; ++k)
-					flow[k] = src[lr][k][j];
-
-				if (bs__isGoodFlow(flow))
-					lut.push_back(j);
-			}
-			dst[lr].resize(numof_computings);
-
-			for (auto& d : dst[lr])
-				d.resize(lut.size());
-
-			for (size_t j = 0; j < numof_computings; ++j)
-			{
-				for (size_t k = 0; k < lut.size(); ++k)
-					dst[lr][j][k] = src[lr][j][lut[k]];
-			}
-		}
-		return;
-	}
-
-	void integrateFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& pixel_set, Stereo<std::vector<std::pair<double, double>>>& dst_flow)
-	{
-		const Stereo<size_t> numof_pixels = { pixel_set[L][0].size(), pixel_set[R][0].size() };
-		Stereo<std::vector<std::pair<cv::Point2f, cv::Point2f>>> each_points;
-
-		for (size_t lr = 0; lr < 2; ++lr)
-		{
-			dst_flow[lr].resize(numof_pixels[lr]);
-
-			for (size_t i = 0; i < numof_pixels[lr]; ++i)
-			{
-				cv::Point2f from, to;
-				double x, y, mag, ang;
-
-				from = pixel_set[lr][0][i];
-				to = pixel_set[lr][pixel_set.size() - 1][i];
-				x = to.x - from.x;
-				y = to.y, from.y;
-				mag = std::sqrt(x * x + y * y);
-				ang = std::atan2(y, x);
-
-				dst_flow[lr][i] = std::make_pair(mag, ang);
-			}
-		}
-		return;
-	}
 
 	inline OpticalFlowApp::OpticalFlowApp() :
 		draw_circle_radius(20), draw_line_width(5),
@@ -339,6 +287,70 @@ namespace bs
 	{
 		return bs::make_Stereo(points_[L][index], points_[R][index]);
 	}
+
+	void rmBadFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& src, Stereo<std::vector<std::vector<cv::Point2f>>>& dst)
+	{
+		const size_t numof_computings = src[L].size();
+		const Stereo<size_t> numof_pixels = { src[L][0].size(), src[R][0].size() };
+		size_t numof_good_flow = 0;
+
+		for (size_t lr = 0; lr < 2; ++lr)
+		{
+			std::vector<size_t> lut;
+
+			for (size_t j = 0; j < numof_pixels[lr]; ++j)
+			{
+				std::vector<cv::Point2f> flow(numof_computings);
+
+				for (size_t k = 0; k < numof_computings; ++k)
+					flow[k] = src[lr][k][j];
+
+				if (bs__isGoodFlow(flow))
+					lut.push_back(j);
+			}
+			dst[lr].resize(numof_computings);
+
+			for (auto& d : dst[lr])
+				d.resize(lut.size());
+
+			for (size_t j = 0; j < numof_computings; ++j)
+			{
+				for (size_t k = 0; k < lut.size(); ++k)
+					dst[lr][j][k] = src[lr][j][lut[k]];
+			}
+		}
+		return;
+	}
+
+	void integrateFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& pixel_set, Stereo<std::vector<OpticalFlow>>& dst_flow)
+	{
+		const Stereo<size_t> numof_pixels = { pixel_set[L][0].size(), pixel_set[R][0].size() };
+		Stereo<std::vector<std::pair<cv::Point2f, cv::Point2f>>> each_points;
+
+		for (size_t lr = 0; lr < 2; ++lr)
+		{
+			dst_flow[lr].resize(numof_pixels[lr]);
+
+			for (size_t i = 0; i < numof_pixels[lr]; ++i)
+			{
+				cv::Point2f from, to;
+				double x, y, mag, ang;
+
+				from = pixel_set[lr][0][i];
+				to = pixel_set[lr][pixel_set.size() - 1][i];
+				x = to.x - from.x;
+				y = to.y, from.y;
+				mag = std::sqrt(x * x + y * y);
+				ang = std::atan2(y, x);
+
+				dst_flow[lr][i].point = from;
+				dst_flow[lr][i].magnitude = mag;
+				dst_flow[lr][i].angle = ang;
+			}
+		}
+		return;
+	}
+
 }
 
 
