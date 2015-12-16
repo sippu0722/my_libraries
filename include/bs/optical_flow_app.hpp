@@ -10,8 +10,6 @@
 
 namespace bs
 {
-	using Points2f = std::vector < cv::Point2f > ;
-
 	class OpticalFlowApp
 	{
 	private:
@@ -21,7 +19,7 @@ namespace bs
 
 		bs::StereoCameraController cam_;
 		std::vector<cv::Mat> prj_ims_;
-		Stereo<std::vector<Points2f>> points_;
+		Stereo<std::vector<std::vector<cv::Point2f>>> points_;
 		Stereo<unsigned int > numof_pixels_;
 		unsigned int numof_computings_;
 
@@ -55,8 +53,11 @@ namespace bs
 
 		bool compute();
 
-		Stereo<Points2f> getPointsAtOnePixel(const size_t index) const;
-		Stereo<Points2f> getPointsAtOneComputing(const size_t index) const;
+		Stereo<std::vector<std::vector<cv::Point2f>>> OpticalFlowApp::getPoints() const;
+			
+		Stereo<std::vector<cv::Point2f>> getPointsAtOnePixel(const size_t index) const;
+		
+		Stereo<std::vector<cv::Point2f>> getPointsAtOneComputing(const size_t index) const;
 	};
 
 
@@ -86,10 +87,7 @@ namespace bs
 	{
 		points_[L].resize(numof_shift);
 		points_[R].resize(numof_shift);
-<<<<<<< HEAD
-=======
 		numof_computings_ = numof_shift;
->>>>>>> develop
 		return;
 	}
 
@@ -157,10 +155,7 @@ namespace bs
 				cv::FILLED, cv::LINE_AA);
 		}
 		}
-<<<<<<< HEAD
-=======
 		numof_pixels_ = bs::make_Stereo<unsigned int>(points_[L][0].size(), points_[R][0].size());
->>>>>>> develop
 		return;
 	}
 
@@ -247,9 +242,14 @@ namespace bs
 		return true;
 	}
 
-	inline Stereo<Points2f> OpticalFlowApp::getPointsAtOnePixel(const size_t index) const
+	inline Stereo<std::vector<std::vector<cv::Point2f>>> OpticalFlowApp::getPoints() const
 	{
-		Stereo<Points2f> points, output;
+		return points_;
+	}
+
+	inline Stereo<std::vector<cv::Point2f>> OpticalFlowApp::getPointsAtOnePixel(const size_t index) const
+	{
+		Stereo<std::vector<cv::Point2f>> points, output;
 
 		points[L].resize(numof_computings_);
 		points[R].resize(numof_computings_);
@@ -262,7 +262,7 @@ namespace bs
 		return points;
 	}
 
-	inline Stereo<Points2f> OpticalFlowApp::getPointsAtOneComputing(const size_t index) const
+	inline Stereo<std::vector<cv::Point2f>> OpticalFlowApp::getPointsAtOneComputing(const size_t index) const
 	{
 		return bs::make_Stereo(points_[L][index], points_[R][index]);
 	}
