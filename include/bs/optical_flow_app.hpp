@@ -17,12 +17,6 @@ namespace bs
 	public:
 		cv::Point2f point;
 		double magnitude, angle;
-
-		std::ostream& operator<< (std::ostream& os)
-		{
-			os << "[mag, ang] = [" << this->magnitude << ", " << this->angle << "] from " << this->point;
-			return os;
-		}
 	};
 
 	class OpticalFlowApp
@@ -35,8 +29,8 @@ namespace bs
 		bs::StereoCameraController cam_;
 		std::vector<cv::Mat> prj_ims_;
 		Stereo<std::vector<std::vector<cv::Point2f>>> points_;
-		Stereo<unsigned int > numof_pixels_;
-		unsigned int numof_computings_;
+		Stereo<size_t> numof_pixels_;
+		size_t numof_computings_;
 
 	public:
 		unsigned int view_width;
@@ -81,6 +75,11 @@ namespace bs
 	void integrateFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& pixel_set,
 		Stereo<std::vector<OpticalFlow>>& dst_flow);
 
+	std::ostream& operator<< (std::ostream& os, const OpticalFlow& flow)
+	{
+		os << "[mag, ang] = [" << flow.magnitude << ", " << flow.angle << "] from " << flow.point;
+		return os;
+	}
 
 	inline OpticalFlowApp::OpticalFlowApp() :
 		draw_circle_radius(20), draw_line_width(5),
@@ -176,7 +175,7 @@ namespace bs
 				cv::FILLED, cv::LINE_AA);
 		}
 		}
-		numof_pixels_ = bs::make_Stereo<unsigned int>(points_[L][0].size(), points_[R][0].size());
+		numof_pixels_ = bs::make_Stereo(points_[L][0].size(), points_[R][0].size());
 		return;
 	}
 
@@ -275,7 +274,7 @@ namespace bs
 		points[L].resize(numof_computings_);
 		points[R].resize(numof_computings_);
 
-		for (int i = 0; i < numof_computings_; ++i)
+		for (size_t i = 0; i < numof_computings_; ++i)
 		{
 			points[L][i] = points_[L][i][index];
 			points[R][i] = points_[R][i][index];
@@ -354,7 +353,7 @@ namespace bs
 }
 
 
-bool bs__isGoodFlow(const std::vector<cv::Point2f>& flow, const double ang_th = 5)
+bool bs__isGoodFlow(const std::vector<cv::Point2f>& flow, const double ang_th)
 {
 	double prev_ang = 400.;
 
