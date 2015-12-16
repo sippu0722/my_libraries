@@ -22,6 +22,8 @@ namespace bs
 		bs::StereoCameraController cam_;
 		std::vector<cv::Mat> prj_ims_;
 		Stereo<std::vector<Points2f>> points_;
+		Stereo<unsigned int > numof_pixels_;
+		unsigned int numof_computings_;
 
 	public:
 		unsigned int view_width;
@@ -53,7 +55,8 @@ namespace bs
 
 		bool compute();
 
-		Stereo<std::vector<Points2f>> getPoints() const { return points_; };
+		Stereo<Points2f> getPointsAtOnePixel(const size_t index) const;
+		Stereo<Points2f> getPointsAtOneComputing(const size_t index) const;
 	};
 
 
@@ -83,6 +86,10 @@ namespace bs
 	{
 		points_[L].resize(numof_shift);
 		points_[R].resize(numof_shift);
+<<<<<<< HEAD
+=======
+		numof_computings_ = numof_shift;
+>>>>>>> develop
 		return;
 	}
 
@@ -150,6 +157,10 @@ namespace bs
 				cv::FILLED, cv::LINE_AA);
 		}
 		}
+<<<<<<< HEAD
+=======
+		numof_pixels_ = bs::make_Stereo<unsigned int>(points_[L][0].size(), points_[R][0].size());
+>>>>>>> develop
 		return;
 	}
 
@@ -234,5 +245,25 @@ namespace bs
 			next_im[R].copyTo(prev_im[R]);
 		}
 		return true;
+	}
+
+	inline Stereo<Points2f> OpticalFlowApp::getPointsAtOnePixel(const size_t index) const
+	{
+		Stereo<Points2f> points, output;
+
+		points[L].resize(numof_computings_);
+		points[R].resize(numof_computings_);
+
+		for (int i = 0; i < numof_computings_; ++i)
+		{
+			points[L][i] = points_[L][i][index];
+			points[R][i] = points_[R][i][index];
+		}
+		return points;
+	}
+
+	inline Stereo<Points2f> OpticalFlowApp::getPointsAtOneComputing(const size_t index) const
+	{
+		return bs::make_Stereo(points_[L][index], points_[R][index]);
 	}
 }
