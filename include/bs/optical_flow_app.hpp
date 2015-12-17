@@ -6,15 +6,15 @@
 #include <bs/my_opencv.hpp>
 #include <bs/camera_controller2.hpp>
 #include <bs/projection_image.hpp>
+#include <bs/rectify_remap.hpp>
 
 
 bool bs__isGoodFlow(const std::vector<cv::Point2f>& flow, const double ang_th = 5);
 
 namespace bs
 {
-	class OpticalFlow
+	struct OpticalFlow
 	{
-	public:
 		cv::Point2f point;
 		double magnitude, angle;
 	};
@@ -27,6 +27,7 @@ namespace bs
 		double quality_level_, min_distance_;
 
 		bs::StereoCameraController cam_;
+		bs::RectifyRemap map_;
 		std::vector<cv::Mat> prj_ims_;
 		Stereo<std::vector<std::vector<cv::Point2f>>> points_;
 		Stereo<size_t> numof_pixels_;
@@ -55,6 +56,8 @@ namespace bs
 		bool startCamera();
 
 		int showCameraImage();
+
+		void captureRectifiedStereoCameraImage(Stereo<cv::Mat>& image);
 
 		void detectFeatures(Stereo<cv::Mat>& draw_image);
 
@@ -113,6 +116,9 @@ namespace bs
 
 	inline bool OpticalFlowApp::startCamera()
 	{
+		if (!map_.load(kDirCalib))
+			return false;
+
 		if (!cam_.initFromFile(kFileCamParam))
 			return false;
 
@@ -128,7 +134,20 @@ namespace bs
 
 	inline int OpticalFlowApp::showCameraImage()
 	{
-		return cam_.show();
+		int key = cam_.show();
+
+		if (true)
+		{
+			cam_.setProperty(fc::SHUTTER, false);
+			cam_.setProperty(fc::GAIN, false);
+		}
+		return key;
+	}
+
+	inline void OpticalFlowApp::captureRectifiedStereoCameraImage(Stereo<cv::Mat>& image)
+	{
+		cam_ >> image;
+		return;
 	}
 
 	inline void OpticalFlowApp::setProjectionImages(cv::InputArrayOfArrays images)
@@ -147,18 +166,24 @@ namespace bs
 		assert(0 < prj_ims_.size());
 		assert(!points_[L].empty() && !points_[R].empty());
 
+		const int w = cam_.getSize()[L].width, h = cam_.getSize()[L].height;
 		Stereo<cv::Mat> im;
+		cv::Mat mask = cv::Mat::zeros(cam_.getSize()[L], CV_8U);
+		mask(cv::Rect(300, 50, w - 350, h - 100)) = 1;
 
 		bs::showWindowNoframe(prj_ims_[0]);
 		cv::waitKey(delay);
 
 		cam_ >> im;
+		map_.st_remap(im, cv::INTER_LINEAR);
 
 #pragma omp parallel sections
 		{
 #pragma omp section
 		{
-			cv::goodFeaturesToTrack(im[L], points_[L][0], max_corners_, quality_level_, min_distance_);
+			cv::goodFeaturesToTrack(im[L], points_[L][0],
+									max_corners_, quality_level_, min_distance_,
+									mask);
 			cv::cvtColor(im[L], draw_image[L], cv::COLOR_GRAY2BGR);
 
 			for (const auto& p : points_[L][0])
@@ -167,7 +192,9 @@ namespace bs
 		}
 #pragma omp section
 		{
-			cv::goodFeaturesToTrack(im[R], points_[R][0], max_corners_, quality_level_, min_distance_);
+			cv::goodFeaturesToTrack(im[R], points_[R][0],
+									max_corners_, quality_level_, min_distance_,
+									mask);
 			cv::cvtColor(im[R], draw_image[R], cv::COLOR_GRAY2BGR);
 
 			for (const auto& p : points_[R][0])
@@ -195,6 +222,7 @@ namespace bs
 			return false;
 
 		cam_ >> prev_im;
+		map_.st_remap(prev_im, cv::INTER_LINEAR);
 		cv::cvtColor(prev_im[L], flow_view_im[L], cv::COLOR_GRAY2BGR);
 		cv::cvtColor(prev_im[R], flow_view_im[R], cv::COLOR_GRAY2BGR);
 
@@ -211,8 +239,8 @@ namespace bs
 
 		if (sw_save_all_image)
 		{
-			bs::imwrite(dir + "cam__l0.png", prev_im[L], view_sz * 2);
-			bs::imwrite(dir + "cam__r0.png", prev_im[R], view_sz * 2);
+			bs::imwrite(dir + "cam_l0.png", prev_im[L], view_sz * 2);
+			bs::imwrite(dir + "cam_r0.png", prev_im[R], view_sz * 2);
 		}
 
 		for (size_t i = 1; i < prj_ims_.size(); ++i)
@@ -223,11 +251,12 @@ namespace bs
 			if (cv::waitKey(delay) == 'q')
 				return false;
 			cam_ >> next_im;
+			map_.st_remap(next_im, cv::INTER_LINEAR);
 
 			if (sw_save_all_image)
 			{
-				bs::imwrite(dir + "cam__l" + std::to_string(i) + ".png", next_im[L], view_sz * 2);
-				bs::imwrite(dir + "cam__r" + std::to_string(i) + ".png", next_im[R], view_sz * 2);
+				bs::imwrite(dir + "cam_l" + std::to_string(i) + ".png", next_im[L], view_sz * 2);
+				bs::imwrite(dir + "cam_r" + std::to_string(i) + ".png", next_im[R], view_sz * 2);
 			}
 
 			cv::calcOpticalFlowPyrLK(prev_im[L], next_im[L],
@@ -323,7 +352,10 @@ namespace bs
 
 	void integrateFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& pixel_set, Stereo<std::vector<OpticalFlow>>& dst_flow)
 	{
+		assert(pixel_set[L].size() == pixel_set[R].size());
+
 		const Stereo<size_t> numof_pixels = { pixel_set[L][0].size(), pixel_set[R][0].size() };
+		const size_t numof_computings = pixel_set[L].size();
 		Stereo<std::vector<std::pair<cv::Point2f, cv::Point2f>>> each_points;
 
 		for (size_t lr = 0; lr < 2; ++lr)
@@ -336,11 +368,12 @@ namespace bs
 				double x, y, mag, ang;
 
 				from = pixel_set[lr][0][i];
-				to = pixel_set[lr][pixel_set.size() - 1][i];
+				to = pixel_set[lr][numof_computings - 1][i];
 				x = to.x - from.x;
-				y = to.y, from.y;
+				y = to.y - from.y;
 				mag = std::sqrt(x * x + y * y);
 				ang = std::atan2(y, x);
+				ang *= (180.0 / std::_Pi);	// rad -> deg
 
 				dst_flow[lr][i].point = from;
 				dst_flow[lr][i].magnitude = mag;
@@ -363,9 +396,16 @@ bool bs__isGoodFlow(const std::vector<cv::Point2f>& flow, const double ang_th)
 		const double y = it->y - (it - 1)->y;
 
 		double ang = std::atan2(y, x);
+		ang *= (180.0 / std::_Pi);	// radian to degree
 
-		if (prev_ang <= 360 && ang_th < std::abs(ang - prev_ang))
+		double tmp = ang - prev_ang;
+		double ang_diff = 180 < tmp ? tmp - 360.0 : tmp < -180 ? tmp + 360.0 : tmp;
+
+		if (prev_ang <= 360 && ang_th < ang_diff)
+		{
+			std::cout << std::endl << "Bad angles (" << prev_ang << " -> " << ang << ")" << std::endl;
 			return false;
+		}
 		prev_ang = ang;
 	}
 	return true;
