@@ -184,13 +184,21 @@ namespace bs
 		cam_ >> im;
 		map_.st_remap(im, cv::INTER_LINEAR);
 
+		cv::Mat rectify_mask = cv::Mat::zeros(im[L].size(), CV_8U);
+		rectify_mask(cv::Rect(30, 30, im[L].cols - 60, im[L].rows - 60)) = 1;
+
+		msk[L] = mask[L].empty() ? cv::Mat::ones(im[L].size(), CV_8U) : mask[L];
+		msk[R] = mask[R].empty() ? cv::Mat::ones(im[R].size(), CV_8U) : mask[R];
+
+		cv::bitwise_and(msk[L], rectify_mask, msk[L]);
+		cv::bitwise_and(msk[R], rectify_mask, msk[R]);
+
 #pragma omp parallel sections
 		{
 #pragma omp section
 		{
 			cv::goodFeaturesToTrack(im[L], points_[L][0],
-									max_corners_, quality_level_, min_distance_,
-									(mask[L].empty() ? cv::noArray() : mask[L]));
+									max_corners_, quality_level_, min_distance_, msk[L]);
 			cv::cvtColor(im[L], draw_image[L], cv::COLOR_GRAY2BGR);
 
 			for (const auto& p : points_[L][0])
@@ -200,8 +208,7 @@ namespace bs
 #pragma omp section
 		{
 			cv::goodFeaturesToTrack(im[R], points_[R][0],
-									max_corners_, quality_level_, min_distance_,
-									(mask[R].empty() ? cv::noArray() : mask[R]));
+									max_corners_, quality_level_, min_distance_, msk[R]);
 			cv::cvtColor(im[R], draw_image[R], cv::COLOR_GRAY2BGR);
 
 			for (const auto& p : points_[R][0])
@@ -215,8 +222,7 @@ namespace bs
 
 	inline void OpticalFlowApp::detectFeatures(Stereo<cv::Mat>& draw_image, const Stereo<cv::Rect>& roi)
 	{
-		const auto sz = draw_image[L].size();
-		Stereo<cv::Mat> mask = { cv::Mat::zeros(sz, CV_8U), cv::Mat::zeros(sz, CV_8U) };
+		Stereo<cv::Mat> mask = { cv::Mat::zeros(cam_size, CV_8U), cv::Mat::zeros(cam_size, CV_8U) };
 		mask[L](roi[L]) = 1;
 		mask[R](roi[R]) = 1;
 
@@ -411,7 +417,7 @@ namespace bs
 			const cv::Point p0 = src_flow.point;
 			const cv::Point p1 = target_flow_vec[i].point;
 
-			if (p0 == p1)
+			if (p0.y == p1.y)
 				epipolar_indices.push_back(i);
 		}
 		return epipolar_indices;

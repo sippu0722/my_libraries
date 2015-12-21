@@ -10,12 +10,16 @@ namespace bs
 void savePointCloud(const std::string file, cv::InputArray point_cloud, const bool remove_miss_point, const bool is_binary)
 {
 	cv::Mat points = point_cloud.getMat();
+	
 	if (points.empty())
 		return;
 
+	if (points.type() != CV_32FC1)
+		points.reshape(1, 3);
+
 	if (remove_miss_point)
 	{
-		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>());
+		pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
 		for (int row = 0; row < points.rows; ++row)
 		{
