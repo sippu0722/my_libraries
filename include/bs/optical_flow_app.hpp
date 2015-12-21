@@ -59,7 +59,8 @@ namespace bs
 
 		void captureRectifiedStereoCameraImage(Stereo<cv::Mat>& image);
 
-		void detectFeatures(Stereo<cv::Mat>& draw_image);
+		void detectFeatures(Stereo<cv::Mat>& draw_image,
+							const Stereo<cv::Mat>& mask = bs::make_Stereo(cv::Mat(), cv::Mat()));
 
 		void setProjectionImages(cv::InputArrayOfArrays images);
 
@@ -161,15 +162,13 @@ namespace bs
 		return;
 	}
 
-	inline void OpticalFlowApp::detectFeatures(Stereo<cv::Mat>& draw_image)
+	inline void OpticalFlowApp::detectFeatures(Stereo<cv::Mat>& draw_image, const Stereo<cv::Mat>& mask)
 	{
 		assert(0 < prj_ims_.size());
 		assert(!points_[L].empty() && !points_[R].empty());
 
 		const int w = cam_.getSize()[L].width, h = cam_.getSize()[L].height;
-		Stereo<cv::Mat> im;
-		cv::Mat mask = cv::Mat::zeros(cam_.getSize()[L], CV_8U);
-		mask(cv::Rect(300, 50, w - 350, h - 100)) = 1;
+		Stereo<cv::Mat> im, msk;
 
 		bs::showWindowNoframe(prj_ims_[0]);
 		cv::waitKey(delay);
@@ -183,7 +182,7 @@ namespace bs
 		{
 			cv::goodFeaturesToTrack(im[L], points_[L][0],
 									max_corners_, quality_level_, min_distance_,
-									mask);
+									(mask[L].empty() ? cv::noArray() : mask[L]));
 			cv::cvtColor(im[L], draw_image[L], cv::COLOR_GRAY2BGR);
 
 			for (const auto& p : points_[L][0])
@@ -194,7 +193,7 @@ namespace bs
 		{
 			cv::goodFeaturesToTrack(im[R], points_[R][0],
 									max_corners_, quality_level_, min_distance_,
-									mask);
+									(mask[R].empty() ? cv::noArray() : mask[R]));
 			cv::cvtColor(im[R], draw_image[R], cv::COLOR_GRAY2BGR);
 
 			for (const auto& p : points_[R][0])
