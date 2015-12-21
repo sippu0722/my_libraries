@@ -38,7 +38,7 @@ namespace bs
 		unsigned int draw_circle_radius;
 		unsigned int draw_line_width;
 		int delay;
-		cv::Size view_sz;
+		cv::Size cam_size, view_sz;
 		bool sw_save_all_image;
 
 		OpticalFlowApp();
@@ -61,6 +61,7 @@ namespace bs
 
 		void detectFeatures(Stereo<cv::Mat>& draw_image,
 							const Stereo<cv::Mat>& mask = bs::make_Stereo(cv::Mat(), cv::Mat()));
+		void detectFeatures(Stereo<cv::Mat>& draw_image, const Stereo<cv::Rect>& roi);
 
 		void setProjectionImages(cv::InputArrayOfArrays images);
 
@@ -74,10 +75,16 @@ namespace bs
 	};
 
 	void rmBadFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& src,
-		Stereo<std::vector<std::vector<cv::Point2f>>>& dst);
+				   Stereo<std::vector<std::vector<cv::Point2f>>>& dst);
 
 	void integrateFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& pixel_set,
-		Stereo<std::vector<OpticalFlow>>& dst_flow);
+					   Stereo<std::vector<OpticalFlow>>& dst_flow);
+
+	std::vector<size_t> searchEpipolar(const OpticalFlow& src_flow,
+									   const std::vector<OpticalFlow>& target_flow_vec);
+
+
+
 
 	std::ostream& operator<< (std::ostream& os, const OpticalFlow& flow)
 	{
@@ -130,6 +137,7 @@ namespace bs
 			cam_.setProperty(fc::SHUTTER, true);
 			cam_.setProperty(fc::GAIN, true);
 		}
+		cam_size = cam_.getSize()[L];
 		return true;
 	}
 
@@ -202,6 +210,17 @@ namespace bs
 		}
 		}
 		numof_pixels_ = bs::make_Stereo(points_[L][0].size(), points_[R][0].size());
+		return;
+	}
+
+	inline void OpticalFlowApp::detectFeatures(Stereo<cv::Mat>& draw_image, const Stereo<cv::Rect>& roi)
+	{
+		const auto sz = draw_image[L].size();
+		Stereo<cv::Mat> mask = { cv::Mat::zeros(sz, CV_8U), cv::Mat::zeros(sz, CV_8U) };
+		mask[L](roi[L]) = 1;
+		mask[R](roi[R]) = 1;
+
+		detectFeatures(draw_image, mask);
 		return;
 	}
 
@@ -380,6 +399,22 @@ namespace bs
 			}
 		}
 		return;
+	}
+
+	std::vector<size_t> searchEpipolar(const OpticalFlow& src_flow, const std::vector<OpticalFlow>& target_flow_vec)
+	{
+		std::vector<size_t> epipolar_indices;
+		epipolar_indices.reserve(target_flow_vec.size());
+
+		for (size_t i = 0; i < target_flow_vec.size(); ++i)
+		{
+			const cv::Point p0 = src_flow.point;
+			const cv::Point p1 = target_flow_vec[i].point;
+
+			if (p0 == p1)
+				epipolar_indices.push_back(i);
+		}
+		return epipolar_indices;
 	}
 
 }
