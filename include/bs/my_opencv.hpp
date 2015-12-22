@@ -82,8 +82,8 @@ cv::String getMatTypeName(const int type_val)
 			(tmp == CV_16S) ? "CV_16S" :
 			(tmp == CV_32S) ? "CV_32S" :
 			(tmp == CV_32F) ? "CV_32F" :
-			(tmp == CV_64F) ? "CV_64F" : "";
-		str += str_cn;
+			(tmp == CV_64F) ? "CV_64F" : ""
+			+ str_cn;
 	}
 	return str.empty() ? "Unknown type!!!" : str;
 }
