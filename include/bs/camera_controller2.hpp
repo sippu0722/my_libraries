@@ -56,22 +56,16 @@ namespace bs
 
 	bool makeCameraParameterFile(const std::string& file_name, const unsigned int serial,
 								 const fc::Mode mode, const fc::PixelFormat pixel_format,
-								 const unsigned int offset_x, const unsigned int offset_y,
-								 const unsigned int width, const unsigned int height,
+								 const cv::Point& offset, const cv::Size& size,
 								 const float shutter, const float gain, const float frame_rate);
 
 	bool makeStereoCameraParameterFile(const std::string& file_name, const Stereo<unsigned int> serial,
 									   const Stereo<fc::Mode> mode,
 									   const Stereo<fc::PixelFormat> pixel_format,
-									   const Stereo<unsigned int> offset_x,
-									   const Stereo<unsigned int> offset_y,
-									   const Stereo<unsigned int> width, const Stereo<unsigned int> height,
+									   const Stereo<cv::Point>& offset,
+									   const Stereo<cv::Size>& size,
 									   const Stereo<float> shutter, const Stereo<float> gain,
 									   const Stereo<float> frame_rate);
-
-	void updateCameraParameterFile(const std::string& file, const fc::Mode mode);
-
-	void updateStereoCameraParameterFile(const std::string& file, const Stereo<fc::Mode>& mode);
 
 
 	class Camera
@@ -179,7 +173,7 @@ namespace bs
 		bool setProperty(const Stereo<fc::Property>& prop);
 
 		bool setProperty(const fc::PropertyType type, const Stereo<float>& abs_value,
-						 const Stereo<int>& value_b = { { 0, 0 } });
+						 const Stereo<int>& value_b = make_Stereo(0, 0));
 
 		bool setProperty(const fc::PropertyType type, const bool is_auto);
 
@@ -392,7 +386,7 @@ namespace bs
 
 	bool loadCameraParameter(const cv::FileNode& fs, fc::CameraInfo& cam_info, fc::Format7ImageSettings& fmt7_imset, float& shutter, float& gain, float& frame_rate)
 	{
-		const unsigned int uintmax = std::numeric_limits<unsigned int>::max();
+		const auto uintmax = std::numeric_limits<unsigned int>::max();
 		cv::FileNode fn(fs.fs, nullptr);
 
 		cam_info.serialNumber = uintmax;
@@ -409,7 +403,7 @@ namespace bs
 
 	bool loadStereoCameraParameter(const cv::FileStorage& fs, Stereo<fc::CameraInfo>& cam_info, Stereo<fc::Format7ImageSettings>& fmt7_imset, Stereo<float>& shutter, Stereo<float>& gain, Stereo<float>& frame_rate)
 	{
-		const unsigned int uintmax = std::numeric_limits<unsigned int>::max();
+		const auto uintmax = std::numeric_limits<unsigned int>::max();
 
 		cam_info[L].serialNumber = cam_info[R].serialNumber = uintmax;
 
@@ -435,7 +429,7 @@ namespace bs
 		return true;
 	}
 
-	bool makeCameraParameterFile(const std::string& file_name, const unsigned int serial, const fc::Mode mode, const fc::PixelFormat pixel_format, const unsigned int offset_x, const unsigned int offset_y, const unsigned int width, const unsigned int height, const float shutter, const float gain, const float frame_rate)
+	bool makeCameraParameterFile(const std::string& file_name, const unsigned int serial, const fc::Mode mode, const fc::PixelFormat pixel_format, const cv::Point& offset, const cv::Size& size, const float shutter, const float gain, const float frame_rate)
 	{
 		cv::FileStorage fs(file_name, cv::FileStorage::WRITE);
 		CV_Assert(fs.isOpened());
@@ -446,16 +440,16 @@ namespace bs
 		ci.serialNumber = serial;
 		is.mode = mode;
 		is.pixelFormat = pixel_format;
-		is.offsetX = offset_x;
-		is.offsetY = offset_y;
-		is.width = width;
-		is.height = height;
+		is.offsetX = static_cast<unsigned int>(offset.x);
+		is.offsetY = static_cast<unsigned int>(offset.y);
+		is.width = static_cast<unsigned int>(size.width);
+		is.height = static_cast<unsigned int>(size.height);
 
 		saveCameraParameter(fs, ci, is, shutter, gain, frame_rate);
 		return true;
 	}
 
-	bool makeStereoCameraParameterFile(const std::string& file_name, const Stereo<unsigned int> serial, const Stereo<fc::Mode> mode, const Stereo<fc::PixelFormat> pixel_format, const Stereo<unsigned int> offset_x, const Stereo<unsigned int> offset_y, const Stereo<unsigned int> width, const Stereo<unsigned int> height, const Stereo<float> shutter, const Stereo<float> gain, const Stereo<float> frame_rate)
+	bool makeStereoCameraParameterFile(const std::string& file_name, const Stereo<unsigned int> serial, const Stereo<fc::Mode> mode, const Stereo<fc::PixelFormat> pixel_format, const Stereo<cv::Point>& offset, const Stereo<cv::Size>& size, const Stereo<float> shutter, const Stereo<float> gain, const Stereo<float> frame_rate)
 	{
 		cv::FileStorage fs(file_name, cv::FileStorage::WRITE);
 		CV_Assert(fs.isOpened());
@@ -466,98 +460,21 @@ namespace bs
 		ci[L].serialNumber = serial[L];
 		is[L].mode = mode[L];
 		is[L].pixelFormat = pixel_format[L];
-		is[L].offsetX = offset_x[L];
-		is[L].offsetY = offset_y[L];
-		is[L].width = width[L];
-		is[L].height = height[L];
+		is[L].offsetX = static_cast<unsigned int>(offset[L].x);
+		is[L].offsetY = static_cast<unsigned int>(offset[L].y);
+		is[L].width = static_cast<unsigned int>(size[L].width);
+		is[L].height = static_cast<unsigned int>(size[L].height);
 
 		ci[R].serialNumber = serial[R];
 		is[R].mode = mode[R];
 		is[R].pixelFormat = pixel_format[R];
-		is[R].offsetX = offset_x[R];
-		is[R].offsetY = offset_y[R];
-		is[R].width = width[R];
-		is[R].height = height[R];
+		is[R].offsetX = static_cast<unsigned int>(offset[R].x);
+		is[R].offsetY = static_cast<unsigned int>(offset[R].y);
+		is[R].width = static_cast<unsigned int>(size[R].width);
+		is[R].height = static_cast<unsigned int>(size[R].height);
 
 		saveStereoCameraParameter(fs, ci, is, shutter, gain, frame_rate);
 		return true;
-	}
-
-	void updateCameraParameterFile(const std::string& file, const fc::Mode mode)
-	{
-		cv::FileStorage fs(file, cv::FileStorage::READ);
-
-		int serial, tmp;
-		float gain, shutter, frame_rate;
-		std::string str;
-		cv::Point tl;
-		cv::Size sz;
-
-		// load
-		fs["serial"] >> serial;
-		fs["format"] >> tmp;
-		str = fmt2str(static_cast<fc::PixelFormat>(tmp));
-
-		fs["tl"] >> tl;
-		fs["size"] >> sz;
-		fs["shutter"] >> shutter;
-		fs["gain"] >> gain;
-		fs["frame_rate"] >> frame_rate;
-		fs.release();
-
-		// update
-		makeCameraParameterFile(
-			file, serial, mode, static_cast<fc::PixelFormat>(tmp),
-			tl.x, tl.y, sz.width, sz.height, shutter, gain, frame_rate);
-		return;
-	}
-
-	void updateStereoCameraParameterFile(const std::string& file, const Stereo<fc::Mode>& mode)
-	{
-		cv::FileStorage fs(file, cv::FileStorage::READ);
-		cv::FileNode fn;
-
-		Stereo<int> serial, tmp;
-		Stereo<float> gain, shutter, frame_rate;
-		Stereo<std::string> str;
-		Stereo<cv::Point> tl;
-		Stereo<cv::Size> sz;
-
-		// load
-		fn = fs["left"];
-		fn["serial"] >> serial[L];
-		fn["format"] >> tmp[L];
-		str[L] = fmt2str(static_cast<fc::PixelFormat>(tmp[L]));
-
-		fn["tl"] >> tl[L];
-		fn["size"] >> sz[L];
-		fn["shutter"] >> shutter[L];
-		fn["gain"] >> gain[L];
-		fn["frame_rate"] >> frame_rate[L];
-
-		fn = fs["right"];
-		fn["serial"] >> serial[R];
-		fn["format"] >> tmp[R];
-		str[R] = fmt2str(static_cast<fc::PixelFormat>(tmp[R]));
-
-		fn["tl"] >> tl[R];
-		fn["size"] >> sz[R];
-		fn["shutter"] >> shutter[R];
-		fn["gain"] >> gain[R];
-		fn["frame_rate"] >> frame_rate[R];
-
-		fs.release();
-
-		// update
-		makeStereoCameraParameterFile(
-			file, { { serial[L], serial[R] } }, mode,
-			{ { static_cast<fc::PixelFormat>(tmp[L]), static_cast<fc::PixelFormat>(tmp[R]) } },
-			{ { tl[L].x, tl[R].x } },
-			{ { tl[L].y, tl[R].y } },
-			{ { sz[L].width, sz[R].width } },
-			{ { sz[L].height, sz[R].height } },
-			shutter, gain, frame_rate);
-		return;
 	}
 
 
