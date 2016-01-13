@@ -752,17 +752,16 @@ namespace bs
 
 	inline void CameraController::printParameter()
 	{
-		std::cout << std::endl;
 		message("Print parameter");
 
 		std::cout
-			<< "Serial number | " << cam_info.serialNumber << std::endl
-			<< "Model         | " << cam_info.modelName << std::endl
-			<< "Pixel format  | " << bs::fmt2str(fmt7_imset.pixelFormat) << std::endl
-			<< "Resolution    | [" << fmt7_imset.width << ", " << fmt7_imset.height << "]" << std::endl
-			<< "Shutter       | " << getProperty(fc::SHUTTER).absValue << std::endl
-			<< "Gain          | " << getProperty(fc::GAIN).absValue << std::endl
-			<< "Frame rate    | " << getProperty(fc::FRAME_RATE).absValue << std::endl;
+			<< "  Serial number | " << cam_info.serialNumber << std::endl
+			<< "  Model         | " << cam_info.modelName << std::endl
+			<< "  Pixel format  | " << bs::fmt2str(fmt7_imset.pixelFormat) << std::endl
+			<< "  Resolution    | [" << fmt7_imset.width << ", " << fmt7_imset.height << "]" << std::endl
+			<< "  Shutter       | " << getProperty(fc::SHUTTER).absValue << std::endl
+			<< "  Gain          | " << getProperty(fc::GAIN).absValue << std::endl
+			<< "  Frame rate    | " << getProperty(fc::FRAME_RATE).absValue << std::endl;
 		return;
 	}
 
