@@ -10,7 +10,7 @@
 #include <FlyCapture2/FlyCapture2.h>
 #pragma warning(default:4819)
 
-#include <bs/stereo_util.h>
+#include <bs/stereo_util.hpp>
 
 
 namespace fc = FlyCapture2;

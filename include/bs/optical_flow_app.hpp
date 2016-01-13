@@ -11,6 +11,9 @@
 
 bool bs__isGoodFlow(const std::vector<cv::Point2f>& flow, const double ang_th = 5);
 
+static const std::string dir = kDirTop + "BM_data/OpticalFlowMeasurement/estimateInclination/";
+
+
 namespace bs
 {
 	struct OpticalFlow
@@ -39,7 +42,7 @@ namespace bs
 		unsigned int draw_line_width;
 		int delay;
 		cv::Size cam_size, view_sz;
-		bool sw_save_all_image;
+		bool sw_save_all_images;
 
 		OpticalFlowApp();
 
@@ -95,13 +98,13 @@ namespace bs
 	inline OpticalFlowApp::OpticalFlowApp() :
 		draw_circle_radius(20), draw_line_width(5),
 		view_width(640), delay(300),
-		sw_save_all_image(true)
+		sw_save_all_images(true)
 	{}
 
 	inline OpticalFlowApp::OpticalFlowApp(const size_t numof_shift) :
 		draw_circle_radius(20), draw_line_width(5),
 		view_width(640), delay(300),
-		sw_save_all_image(true)
+		sw_save_all_images(true)
 	{
 		resizePoints(numof_shift);
 	}
@@ -163,6 +166,13 @@ namespace bs
 	{
 		images.getMatVector(prj_ims_);
 
+		if (sw_save_all_images)
+		{
+#pragma omp parallel for
+			for (int i = 0; i < (int)prj_ims_.size(); ++i)		// dst_size = [640, 640 * kPrjSize.height / kPrjSize.width] = [640, 640 * 800 / 1280] = [640, 400]
+				bs::imwrite(dir + "projection/prj_" + std::to_string(i) + ".png", prj_ims_[i], cv::Size(640, 400));
+		}
+
 		if (points_[L].empty() || points_[R].empty())
 			resizePoints(prj_ims_.size());
 		bs::showWindowNoframe(prj_ims_[0]);
@@ -187,18 +197,23 @@ namespace bs
 		cv::Mat rectify_mask = cv::Mat::zeros(im[L].size(), CV_8U);
 		rectify_mask(cv::Rect(30, 30, im[L].cols - 60, im[L].rows - 60)) = 1;
 
+		cv::Mat flow_direc_mask = cv::Mat::zeros(im[L].size(), CV_8U);
+		flow_direc_mask(cv::Rect(1000, 0, im[L].cols - 1000, im[L].rows)) = 1;
+
 		msk[L] = mask[L].empty() ? cv::Mat::ones(im[L].size(), CV_8U) : mask[L];
 		msk[R] = mask[R].empty() ? cv::Mat::ones(im[R].size(), CV_8U) : mask[R];
 
 		cv::bitwise_and(msk[L], rectify_mask, msk[L]);
+		cv::bitwise_and(msk[L], flow_direc_mask, msk[L]);
 		cv::bitwise_and(msk[R], rectify_mask, msk[R]);
+		cv::bitwise_and(msk[R], flow_direc_mask, msk[R]);
 
 #pragma omp parallel sections
 		{
 #pragma omp section
 		{
 			cv::goodFeaturesToTrack(im[L], points_[L][0],
-									max_corners_, quality_level_, min_distance_, msk[L]);
+									max_corners_ / 100, quality_level_, min_distance_, msk[L]);
 			cv::cvtColor(im[L], draw_image[L], cv::COLOR_GRAY2BGR);
 
 			for (const auto& p : points_[L][0])
@@ -215,6 +230,11 @@ namespace bs
 				cv::circle(draw_image[R], p, draw_circle_radius, cv::Scalar(0, 255, 0),
 				cv::FILLED, cv::LINE_AA);
 		}
+		}
+		if (points_[L][0].size() == 0 || points_[R][0].size() == 0)
+		{
+			std::cerr << "No feature points." << std::endl;
+			std::exit(-1);
 		}
 		numof_pixels_ = bs::make_Stereo(points_[L][0].size(), points_[R][0].size());
 		return;
@@ -233,8 +253,6 @@ namespace bs
 	inline bool OpticalFlowApp::compute()
 	{
 		assert(0 < prj_ims_.size());
-
-		const std::string dir = kDirTop + "BM_data/OpticalFlowMeasurement/images/";
 
 		Stereo<cv::Mat> prev_im, next_im, flow_view_im;
 		std::vector<uchar> status;
@@ -261,10 +279,12 @@ namespace bs
 		bs::imshow("right: flow", flow_view_im[R], view_sz);
 		cv::waitKey(2);
 
-		if (sw_save_all_image)
+		if (sw_save_all_images)
 		{
-			bs::imwrite(dir + "cam_l0.png", prev_im[L], view_sz * 2);
-			bs::imwrite(dir + "cam_r0.png", prev_im[R], view_sz * 2);
+			bs::imwrite(dir + "camera/raw/cam_l0.png", prev_im[L], view_sz * 2);
+			bs::imwrite(dir + "camera/raw/cam_r0.png", prev_im[R], view_sz * 2);
+			bs::imwrite(dir + "camera/cam_flow_l0.png", flow_view_im[L], view_sz * 2);
+			bs::imwrite(dir + "camera/cam_flow_r0.png", flow_view_im[R], view_sz * 2);
 		}
 
 		for (size_t i = 1; i < prj_ims_.size(); ++i)
@@ -276,12 +296,6 @@ namespace bs
 				return false;
 			cam_ >> next_im;
 			map_.st_remap(next_im, cv::INTER_LINEAR);
-
-			if (sw_save_all_image)
-			{
-				bs::imwrite(dir + "cam_l" + std::to_string(i) + ".png", next_im[L], view_sz * 2);
-				bs::imwrite(dir + "cam_r" + std::to_string(i) + ".png", next_im[R], view_sz * 2);
-			}
 
 			cv::calcOpticalFlowPyrLK(prev_im[L], next_im[L],
 				points_[L][i - 1], points_[L][i],
@@ -308,6 +322,14 @@ namespace bs
 			bs::imshow("left: flow", flow_view_im[L], view_sz);
 			bs::imshow("right: flow", flow_view_im[R], view_sz);
 			cv::waitKey(2);
+
+			if (sw_save_all_images)
+			{
+				bs::imwrite(dir + "camera/raw/cam_l" + std::to_string(i) + ".png", prev_im[L], view_sz * 2);
+				bs::imwrite(dir + "camera/raw/cam_r" + std::to_string(i) + ".png", prev_im[R], view_sz * 2);
+				bs::imwrite(dir + "camera/cam_flow_l" + std::to_string(i) + ".png", flow_view_im[L], view_sz * 2);
+				bs::imwrite(dir + "camera/cam_flow_r" + std::to_string(i) + ".png", flow_view_im[R], view_sz * 2);
+			}
 
 			next_im[L].copyTo(prev_im[L]);
 			next_im[R].copyTo(prev_im[R]);

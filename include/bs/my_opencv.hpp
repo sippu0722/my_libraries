@@ -34,7 +34,7 @@ inline void imshow(
 {
 	cv::Mat im;
 
-	if (dsize.area() == 0)
+	if (dsize.area() == 0 && fx == 0. && fy == 0.)
 		im = src.getMat();
 	else
 		cv::resize(src, im, dsize, fx, fy, interpolation);
