@@ -7,7 +7,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
-#include <FlyCapture2/FlyCapture2.h>
+#include <FlyCapture2.h>
 #pragma warning(default:4819)
 
 #include <bs/stereo_util.hpp>
