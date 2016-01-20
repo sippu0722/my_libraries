@@ -8,6 +8,7 @@ namespace bs
 	void savePointCloud(
 		const std::string file,
 		cv::InputArray point_cloud,
-		const bool remove_miss_point,
-		const bool is_binary);
+		const bool is_binary,
+		cv::InputArray color_image = cv::Mat(),
+		const bool remove_miss_point = true);
 }
