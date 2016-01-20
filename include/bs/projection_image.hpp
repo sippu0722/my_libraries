@@ -195,8 +195,8 @@ cv::Mat makeRandomStripe(
 
 
 inline void showWindowNoframe(cv::InputArray image,
-	const std::string& win_name = "projection",
-	const cv::Point2i& window_pos = cv::Point2i(1920, -800))
+	const cv::Point2i& window_pos,
+	const std::string& win_name = "projection")
 {
 	// std::string -> wchar_t*
 	//

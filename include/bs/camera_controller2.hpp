@@ -949,19 +949,18 @@ namespace bs
 	{
 		Stereo<cv::Mat> im, view;
 		int key = -1;
-		auto sz = calcViewSize(640);
 
-		sz[L] = (view_sz_[L].area() != 0 ? view_sz_[L] : sz[L]);
-		sz[R] = (view_sz_[R].area() != 0 ? view_sz_[R] : sz[R]);
+		if (view_sz_[L].area() == 0 || view_sz_[R].area() == 0)
+			calcViewSize(1080);
 
 		while (key == -1)
 		{
 			cam[L] >> im[L];
-			cv::resize(im[L], view[L], sz[L]);
+			cv::resize(im[L], view[L], view_sz_[L]);
 			cv::imshow(win_name[L], view[L]);
 
 			cam[R] >> im[R];
-			cv::resize(im[R], view[R], sz[R]);
+			cv::resize(im[R], view[R], view_sz_[R]);
 			cv::imshow(win_name[R], view[R]);
 
 			key = cv::waitKey(2);
