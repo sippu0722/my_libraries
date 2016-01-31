@@ -2,6 +2,8 @@
 #include <iostream>
 #include <omp.h>
 
+#include <boost/filesystem.hpp>
+
 #include <bs/path.h>
 #include <bs/my_opencv.hpp>
 #include <bs/camera_controller2.hpp>
@@ -10,8 +12,6 @@
 
 
 bool bs__isGoodFlow(const std::vector<cv::Point2f>& flow, const double ang_th = 5);
-
-static const std::string dir = kDirTop + "BM_data/OpticalFlowMeasurement/estimateInclination/";
 
 
 namespace bs
@@ -25,6 +25,8 @@ namespace bs
 	class OpticalFlowApp
 	{
 	private:
+		std::string out_dir_;
+
 		// Prameter for cv::goodFeaturesToTrack()
 		int max_corners_;
 		double quality_level_, min_distance_;
@@ -50,9 +52,11 @@ namespace bs
 
 		~OpticalFlowApp(){}
 
-		void setParameter(const int max_corners = 100,
+		void setFeatureParameter(const int max_corners = 100,
 			const double quality_level = 0.05,
 			const double min_distance = 3.);
+
+		void initOutputDirectory(const std::string& dir_name);
 
 		void resizePoints(const size_t numof_shift);
 
@@ -109,11 +113,21 @@ namespace bs
 		resizePoints(numof_shift);
 	}
 
-	inline void OpticalFlowApp::setParameter(const int max_corners, const double quality_level, const double min_distance)
+	inline void OpticalFlowApp::setFeatureParameter(const int max_corners, const double quality_level, const double min_distance)
 	{
 		max_corners_ = max_corners;
 		quality_level_ = quality_level;
 		min_distance_ = min_distance;
+		return;
+	}
+
+	inline void OpticalFlowApp::initOutputDirectory(const std::string& dir_name)
+	{
+		namespace bf = boost::filesystem;
+		out_dir_ = *dir_name.crbegin() == '/' ? dir_name : dir_name + "/";
+		bf::create_directories(out_dir_ + "camera/raw");
+		bf::create_directory(out_dir_ + "projection");
+		bf::create_directory(out_dir_ + "flow_data");
 		return;
 	}
 
@@ -166,16 +180,16 @@ namespace bs
 	{
 		images.getMatVector(prj_ims_);
 
-		if (sw_save_all_images)
+		if (sw_save_all_images && !out_dir_.empty())
 		{
 #pragma omp parallel for
 			for (int i = 0; i < (int)prj_ims_.size(); ++i)		// dst_size = [640, 640 * kPrjSize.height / kPrjSize.width] = [640, 640 * 800 / 1280] = [640, 400]
-				bs::imwrite(dir + "projection/prj_" + std::to_string(i) + ".png", prj_ims_[i], cv::Size(640, 400));
+				bs::imwrite(out_dir_ + "projection/prj_" + std::to_string(i) + ".png", prj_ims_[i], cv::Size(640, 400));
 		}
 
 		if (points_[L].empty() || points_[R].empty())
 			resizePoints(prj_ims_.size());
-		bs::showWindowNoframe(prj_ims_[0]);
+		bs::showWindowNoframe(prj_ims_[0], cv::Point(2560, -prj_ims_[0].rows));
 		cv::waitKey(2);
 		return;
 	}
@@ -188,7 +202,7 @@ namespace bs
 		const int w = cam_.getSize()[L].width, h = cam_.getSize()[L].height;
 		Stereo<cv::Mat> im, msk;
 
-		bs::showWindowNoframe(prj_ims_[0]);
+		bs::showWindowNoframe(prj_ims_[0], cv::Point(2560, -prj_ims_[0].rows));
 		cv::waitKey(delay);
 
 		cam_ >> im;
@@ -213,7 +227,7 @@ namespace bs
 #pragma omp section
 		{
 			cv::goodFeaturesToTrack(im[L], points_[L][0],
-									max_corners_ / 100, quality_level_, min_distance_, msk[L]);
+									max_corners_, quality_level_, min_distance_, msk[L]);
 			cv::cvtColor(im[L], draw_image[L], cv::COLOR_GRAY2BGR);
 
 			for (const auto& p : points_[L][0])
@@ -258,7 +272,7 @@ namespace bs
 		std::vector<uchar> status;
 		std::vector<float> errors;
 
-		bs::showWindowNoframe(prj_ims_[0]);
+		bs::showWindowNoframe(prj_ims_[0], cv::Point(2560, -prj_ims_[0].rows));
 
 		if (cv::waitKey(delay) == 'q')
 			return false;
@@ -279,18 +293,18 @@ namespace bs
 		bs::imshow("right: flow", flow_view_im[R], view_sz);
 		cv::waitKey(2);
 
-		if (sw_save_all_images)
+		if (sw_save_all_images && !out_dir_.empty())
 		{
-			bs::imwrite(dir + "camera/raw/cam_l0.png", prev_im[L], view_sz * 2);
-			bs::imwrite(dir + "camera/raw/cam_r0.png", prev_im[R], view_sz * 2);
-			bs::imwrite(dir + "camera/cam_flow_l0.png", flow_view_im[L], view_sz * 2);
-			bs::imwrite(dir + "camera/cam_flow_r0.png", flow_view_im[R], view_sz * 2);
+			bs::imwrite(out_dir_ + "camera/raw/cam_l0.png", prev_im[L], view_sz * 2);
+			bs::imwrite(out_dir_ + "camera/raw/cam_r0.png", prev_im[R], view_sz * 2);
+			bs::imwrite(out_dir_ + "camera/cam_flow_l0.png", flow_view_im[L], view_sz * 2);
+			bs::imwrite(out_dir_ + "camera/cam_flow_r0.png", flow_view_im[R], view_sz * 2);
 		}
 
 		for (size_t i = 1; i < prj_ims_.size(); ++i)
 		{
 
-			bs::showWindowNoframe(prj_ims_[i]);
+			bs::showWindowNoframe(prj_ims_[i], cv::Point(2560, -prj_ims_[i].rows));
 
 			if (cv::waitKey(delay) == 'q')
 				return false;
@@ -323,12 +337,12 @@ namespace bs
 			bs::imshow("right: flow", flow_view_im[R], view_sz);
 			cv::waitKey(2);
 
-			if (sw_save_all_images)
+			if (sw_save_all_images && !out_dir_.empty())
 			{
-				bs::imwrite(dir + "camera/raw/cam_l" + std::to_string(i) + ".png", prev_im[L], view_sz * 2);
-				bs::imwrite(dir + "camera/raw/cam_r" + std::to_string(i) + ".png", prev_im[R], view_sz * 2);
-				bs::imwrite(dir + "camera/cam_flow_l" + std::to_string(i) + ".png", flow_view_im[L], view_sz * 2);
-				bs::imwrite(dir + "camera/cam_flow_r" + std::to_string(i) + ".png", flow_view_im[R], view_sz * 2);
+				bs::imwrite(out_dir_ + "camera/raw/cam_l" + std::to_string(i) + ".png", prev_im[L], view_sz * 2);
+				bs::imwrite(out_dir_ + "camera/raw/cam_r" + std::to_string(i) + ".png", prev_im[R], view_sz * 2);
+				bs::imwrite(out_dir_ + "camera/cam_flow_l" + std::to_string(i) + ".png", flow_view_im[L], view_sz * 2);
+				bs::imwrite(out_dir_ + "camera/cam_flow_r" + std::to_string(i) + ".png", flow_view_im[R], view_sz * 2);
 			}
 
 			next_im[L].copyTo(prev_im[L]);
