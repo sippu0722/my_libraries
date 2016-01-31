@@ -194,28 +194,28 @@ cv::Mat makeRandomStripe(
 }		// namespace proj
 
 
-//inline void showWindowNoframe(cv::InputArray image,
-//	const std::string& win_name = "projection",
-//	const cv::Point2i& window_pos = cv::Point2i(1920, -800))
-//{
-//	// std::string -> wchar_t*
-//	//
-//	WCHAR ws[32];
-//	size_t wLength = 0;
-//	errno_t err = 0;
-//	setlocale(LC_ALL, "japanese");
-//	err = mbstowcs_s(&wLength, ws, 16, win_name.c_str(), _TRUNCATE);
-//
-//	cv::imshow(win_name, image);
-//
-//	unsigned int win_flags = (SWP_SHOWWINDOW | SWP_NOSIZE);
-//	cv::setWindowProperty(win_name, cv::WINDOW_FULLSCREEN, cv::WINDOW_FULLSCREEN);
-//	HWND win_handle = FindWindow(0, ws);
-//	SetWindowPos(win_handle, HWND_NOTOPMOST, window_pos.x, window_pos.y, image.getMat().cols, image.getMat().rows, win_flags);
-//	SetWindowLong(win_handle, GWL_STYLE, GetWindowLong(win_handle, GWL_EXSTYLE) | WS_EX_TOPMOST);
-//	ShowWindow(win_handle, SW_SHOW);
-//
-//	return;
-//}
+inline void showWindowNoframe(cv::InputArray image,
+	const cv::Point2i& window_pos,
+	const std::string& win_name = "projection")
+{
+	// std::string -> wchar_t*
+	//
+	WCHAR ws[32];
+	size_t wLength = 0;
+	errno_t err = 0;
+	setlocale(LC_ALL, "japanese");
+	err = mbstowcs_s(&wLength, ws, 16, win_name.c_str(), _TRUNCATE);
+
+	cv::imshow(win_name, image);
+
+	unsigned int win_flags = (SWP_SHOWWINDOW | SWP_NOSIZE);
+	cv::setWindowProperty(win_name, cv::WINDOW_FULLSCREEN, cv::WINDOW_FULLSCREEN);
+	HWND win_handle = FindWindow(0, ws);
+	SetWindowPos(win_handle, HWND_NOTOPMOST, window_pos.x, window_pos.y, image.getMat().cols, image.getMat().rows, win_flags);
+	SetWindowLong(win_handle, GWL_STYLE, GetWindowLong(win_handle, GWL_EXSTYLE) | WS_EX_TOPMOST);
+	ShowWindow(win_handle, SW_SHOW);
+
+	return;
+}
 
 }	// namespace bs
