@@ -90,9 +90,6 @@ namespace bs
 	std::vector<size_t> searchEpipolar(const OpticalFlow& src_flow,
 									   const std::vector<OpticalFlow>& target_flow_vec);
 
-
-
-
 	std::ostream& operator<< (std::ostream& os, const OpticalFlow& flow)
 	{
 		os << "[mag, ang] = [" << flow.magnitude << ", " << flow.angle << "] from " << flow.point;
@@ -206,7 +203,7 @@ namespace bs
 		cv::waitKey(delay);
 
 		cam_ >> im;
-		map_.st_remap(im, cv::INTER_LINEAR);
+		map_(im, cv::INTER_LINEAR);
 
 		cv::Mat rectify_mask = cv::Mat::zeros(im[L].size(), CV_8U);
 		rectify_mask(cv::Rect(30, 30, im[L].cols - 60, im[L].rows - 60)) = 1;
@@ -278,7 +275,7 @@ namespace bs
 			return false;
 
 		cam_ >> prev_im;
-		map_.st_remap(prev_im, cv::INTER_LINEAR);
+		map_(prev_im, cv::INTER_LINEAR);
 		cv::cvtColor(prev_im[L], flow_view_im[L], cv::COLOR_GRAY2BGR);
 		cv::cvtColor(prev_im[R], flow_view_im[R], cv::COLOR_GRAY2BGR);
 
@@ -309,7 +306,7 @@ namespace bs
 			if (cv::waitKey(delay) == 'q')
 				return false;
 			cam_ >> next_im;
-			map_.st_remap(next_im, cv::INTER_LINEAR);
+			map_(next_im, cv::INTER_LINEAR);
 
 			cv::calcOpticalFlowPyrLK(prev_im[L], next_im[L],
 				points_[L][i - 1], points_[L][i],

@@ -7,8 +7,6 @@
 #include <opencv2/imgproc.hpp>
 #pragma warning(default:4819)
 
-#include <bs/stereo_util.hpp>
-
 namespace bs
 {
 
@@ -20,7 +18,7 @@ private:
 	cv::Mat mx2_;
 	cv::Mat my2_;
 
-	void saveBinary(const std::string file, const cv::Mat& mat)
+	static void saveBinary(const std::string file, const cv::Mat& mat)
 	{
 		std::ofstream ofs(file, std::ios::binary);
 
@@ -72,15 +70,21 @@ public:
 		load(dir, extention);
 	}
 
-	RectifyRemap(const RectifyRemap& o){ *this = o; }
-
 	void save(const std::string dir, const std::string extention = ".bin")
 	{
 		saveBinary(dir + "mx1" + extention, mx1_);
 		saveBinary(dir + "my1" + extention, my1_);
 		saveBinary(dir + "mx2" + extention, mx2_);
 		saveBinary(dir + "my2" + extention, my2_);
+		return;
+	}
 
+	static void save(const std::string dir, cv::InputArray mx1, cv::InputArray my1, cv::InputArray mx2, cv::InputArray my2, std::string extention = ".bin")
+	{
+		saveBinary(dir + "mx1" + extention, mx1.getMat());
+		saveBinary(dir + "my1" + extention, my2.getMat());
+		saveBinary(dir + "mx2" + extention, mx2.getMat());
+		saveBinary(dir + "my2" + extention, my2.getMat());
 		return;
 	}
 
@@ -103,35 +107,51 @@ public:
 		}
 	}
 
-	void remap(cv::InputOutputArray image, const int interpolation, const bool is_left)
+	//void remap(cv::InputOutputArray image, const int interpolation, const bool is_left)
+	//{
+	//	if (is_left)
+	//		cv::remap(image, image, mx1_, my1_, interpolation);
+	//	else
+	//		cv::remap(image, image, mx2_, my2_, interpolation);
+	//	return;
+	//}
+
+	//void remap(cv::InputArray im_src, cv::OutputArray im_dst, const int interpolation, const bool is_left)
+	//{
+	//	if (is_left)
+	//		cv::remap(im_src, im_dst, mx1_, my1_, interpolation);
+	//	else
+	//		cv::remap(im_src, im_dst, mx2_, my2_, interpolation);
+	//	return;
+	//}
+
+	void st_remap(cv::InputOutputArrayOfArrays im, const int interpolation)
 	{
-		if (is_left)
-			cv::remap(image, image, mx1_, my1_, interpolation);
-		else
-			cv::remap(image, image, mx2_, my2_, interpolation);
+		std::vector<cv::Mat> im_vec;
+		im.getMatVector(im_vec);
+		assert(im_vec.size() == 2);
+		cv::remap(im_vec[0], im_vec[0], mx1_, my1_, interpolation);
+		cv::remap(im_vec[1], im_vec[1], mx2_, my2_, interpolation);
 		return;
 	}
 
-	void remap(cv::InputArray im_src, cv::OutputArray im_dst, const int interpolation, const bool is_left)
+	//void st_remap(cv::InputArrayOfArrays im_src, cv::OutputArrayOfArrays im_dst, const int interpolation)
+	//{
+	//	cv::remap(im_src[0], im_dst[0], mx1_, my1_, interpolation);
+	//	cv::remap(im_src[1], im_dst[1], mx2_, my2_, interpolation);
+	//	return;
+	//}
+
+	void operator()(cv::InputOutputArrayOfArrays im, const int interpolation = cv::INTER_LINEAR)
 	{
-		if (is_left)
-			cv::remap(im_src, im_dst, mx1_, my1_, interpolation);
-		else
-			cv::remap(im_src, im_dst, mx2_, my2_, interpolation);
+		st_remap(im, interpolation);
 		return;
 	}
-
-	void st_remap(const Stereo<cv::Mat>& im, const int interpolation)
+	
+	// å„Ç≈è¡ÇµÇΩÇ¢
+	void operator()(std::array<cv::Mat, 2>& im, const int interpolation = cv::INTER_LINEAR)
 	{
-		cv::remap(im[0], im[0], mx1_, my1_, interpolation);
-		cv::remap(im[1], im[1], mx2_, my2_, interpolation);
-		return;
-	}
-
-	void st_remap(const Stereo<cv::Mat>& im_src, Stereo<cv::Mat>& im_dst, const int interpolation)
-	{
-		cv::remap(im_src[0], im_dst[0], mx1_, my1_, interpolation);
-		cv::remap(im_src[1], im_dst[1], mx2_, my2_, interpolation);
+		st_remap(std::vector<cv::Mat>({ im[0], im[1] }), interpolation);
 		return;
 	}
 
