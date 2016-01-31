@@ -123,6 +123,10 @@ namespace bs
 		*/
 		fc::Property getProperty(const fc::PropertyType type);
 
+		fc::CameraInfo getCameraInfo() const { return cam_info; }
+
+		fc::Format7ImageSettings getFmt7ImageSettings() const { return fmt7_imset; }
+
 		bool setProperty(const fc::Property& prop);
 
 		bool setProperty(const fc::PropertyType type, const float abs_value, const int value_b = 0);
@@ -169,6 +173,10 @@ namespace bs
 		we should get the absolute value(s) from valueA(and valueB).
 		*/
 		Stereo<fc::Property> getProperty(const fc::PropertyType type);
+
+		Stereo<fc::CameraInfo> getCameraInfo() const { return { {cam[L].getCameraInfo(), cam[R].getCameraInfo()} }; }
+
+		Stereo<fc::Format7ImageSettings> getFmt7ImageSettings() const { return{ { cam[L].getFmt7ImageSettings(), cam[R].getFmt7ImageSettings() } }; }
 
 		bool setProperty(const Stereo<fc::Property>& prop);
 
@@ -657,6 +665,7 @@ namespace bs
 	inline bool CameraController::setProperty(const fc::PropertyType type, const float value, const int value_b)
 	{
 		auto prop = getProperty(type);
+		prop.autoManualMode = false;
 
 		switch (type)
 		{
