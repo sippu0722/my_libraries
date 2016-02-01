@@ -135,6 +135,14 @@ public:
 		return;
 	}
 
+	void st_remap(std::array<cv::Mat, 2>& im, const int interpolation = cv::INTER_LINEAR)
+	{
+		std::vector<cv::Mat> tmp = { im[L], im[R] };
+		st_remap(tmp, interpolation);
+		im = { {tmp[L], tmp[R]} };
+		return;
+	}
+
 	//void st_remap(cv::InputArrayOfArrays im_src, cv::OutputArrayOfArrays im_dst, const int interpolation)
 	//{
 	//	cv::remap(im_src[0], im_dst[0], mx1_, my1_, interpolation);

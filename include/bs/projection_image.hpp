@@ -30,11 +30,11 @@ namespace proj
 
 cv::Mat makeRandomDot(
 	const cv::Size& size, const uint dot_size,
-	const bool weighted_pattern,
 	const std::pair<uint, uint> range = { 0, 255 },
 	const std::pair<double, double> weight = { 1., 1. })
 {
 	cv::Mat im;
+	const bool weighted_pattern = (weight.first != weight.second ? true : false);
 
 	if (!weighted_pattern)
 	{
@@ -109,11 +109,10 @@ cv::Mat makeRandomDot(
 cv::Mat makeRandomDot(
 	const uint rows, const uint cols,
 	const uint dot_size,
-	const bool weighted_pattern,
 	const std::pair<uint, uint> range = { 0, 255 },
 	const std::pair<double, double> weight = { 1., 1. })
 {
-	return makeRandomDot(cv::Size(cols, rows), dot_size, weighted_pattern, range, weight);
+	return makeRandomDot(cv::Size(cols, rows), dot_size, range, weight);
 }
 
 cv::Mat makeStripe(

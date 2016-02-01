@@ -62,7 +62,7 @@ inline void imwrite(
 	return;
 }
 
-cv::String getMatTypeName(const int type_val)
+inline cv::String getMatTypeName(const int type_val)
 {
 	cv::String str;
 

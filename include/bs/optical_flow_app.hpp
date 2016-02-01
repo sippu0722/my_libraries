@@ -31,7 +31,6 @@ namespace bs
 		int max_corners_;
 		double quality_level_, min_distance_;
 
-		bs::StereoCameraController cam_;
 		bs::RectifyRemap map_;
 		std::vector<cv::Mat> prj_ims_;
 		Stereo<std::vector<std::vector<cv::Point2f>>> points_;
@@ -39,6 +38,7 @@ namespace bs
 		size_t numof_computings_;
 
 	public:
+		bs::StereoCameraController cam;
 		unsigned int view_width;
 		unsigned int draw_circle_radius;
 		unsigned int draw_line_width;
@@ -87,7 +87,7 @@ namespace bs
 	void integrateFlow(const Stereo<std::vector<std::vector<cv::Point2f>>>& pixel_set,
 					   Stereo<std::vector<OpticalFlow>>& dst_flow);
 
-	std::vector<size_t> searchEpipolar(const OpticalFlow& src_flow,
+	std::vector<OpticalFlow> searchEpipolar(const OpticalFlow& src_flow,
 									   const std::vector<OpticalFlow>& target_flow_vec);
 
 	std::ostream& operator<< (std::ostream& os, const OpticalFlow& flow)
@@ -141,35 +141,23 @@ namespace bs
 		if (!map_.load(kDirCalib))
 			return false;
 
-		if (!cam_.initFromFile(kFileCamParam))
+		if (!cam.initFromFile(kFileCamParam))
 			return false;
 
-		view_sz = cam_.calcViewSize(view_width)[L];
-
-		if (true)
-		{
-			cam_.setProperty(fc::SHUTTER, true);
-			cam_.setProperty(fc::GAIN, true);
-		}
-		cam_size = cam_.getSize()[L];
+		view_sz = cam.calcViewSize(view_width)[L];
+		cam_size = cam.getSize()[L];
 		return true;
 	}
 
 	inline int OpticalFlowApp::showCameraImage()
 	{
-		int key = cam_.show();
-
-		if (true)
-		{
-			cam_.setProperty(fc::SHUTTER, false);
-			cam_.setProperty(fc::GAIN, false);
-		}
-		return key;
+		return cam.show(bs::make_Stereo<std::string>("cam left", "cam right"));
 	}
 
 	inline void OpticalFlowApp::captureRectifiedStereoCameraImage(Stereo<cv::Mat>& image)
 	{
-		cam_ >> image;
+		cam >> image;
+		map_(image);
 		return;
 	}
 
@@ -196,28 +184,37 @@ namespace bs
 		assert(0 < prj_ims_.size());
 		assert(!points_[L].empty() && !points_[R].empty());
 
-		const int w = cam_.getSize()[L].width, h = cam_.getSize()[L].height;
+		const int w = cam.getSize()[L].width, h = cam.getSize()[L].height;
 		Stereo<cv::Mat> im, msk;
 
 		bs::showWindowNoframe(prj_ims_[0], cv::Point(2560, -prj_ims_[0].rows));
-		cv::waitKey(delay);
+		cv::waitKey(delay * 100);
 
-		cam_ >> im;
+		cam >> im;
 		map_(im, cv::INTER_LINEAR);
-
-		cv::Mat rectify_mask = cv::Mat::zeros(im[L].size(), CV_8U);
-		rectify_mask(cv::Rect(30, 30, im[L].cols - 60, im[L].rows - 60)) = 1;
 
 		cv::Mat flow_direc_mask = cv::Mat::zeros(im[L].size(), CV_8U);
 		flow_direc_mask(cv::Rect(1000, 0, im[L].cols - 1000, im[L].rows)) = 1;
 
 		msk[L] = mask[L].empty() ? cv::Mat::ones(im[L].size(), CV_8U) : mask[L];
-		msk[R] = mask[R].empty() ? cv::Mat::ones(im[R].size(), CV_8U) : mask[R];
-
-		cv::bitwise_and(msk[L], rectify_mask, msk[L]);
 		cv::bitwise_and(msk[L], flow_direc_mask, msk[L]);
-		cv::bitwise_and(msk[R], rectify_mask, msk[R]);
-		cv::bitwise_and(msk[R], flow_direc_mask, msk[R]);
+
+		// create right mask
+		msk[R] = cv::Mat::zeros(msk[L].size(), CV_8U);
+
+		for (int row = 0; row < msk[R].rows; ++row)
+		{
+			const auto *l_ptr = msk[L].ptr<uchar>(row);
+			auto *r_ptr = msk[R].ptr<uchar>(row);
+
+			for (int col = 0; col < msk[R].cols; ++col)
+			{
+				const auto val = l_ptr[col];
+
+				if(val == 1)
+					for (int c = col; c < std::min(col + 512, msk[R].cols); ++c)	r_ptr[c] = 1;
+			}
+		}
 
 #pragma omp parallel sections
 		{
@@ -234,7 +231,7 @@ namespace bs
 #pragma omp section
 		{
 			cv::goodFeaturesToTrack(im[R], points_[R][0],
-									max_corners_, quality_level_, min_distance_, msk[R]);
+									max_corners_, quality_level_ / 2.0, min_distance_, msk[R]);
 			cv::cvtColor(im[R], draw_image[R], cv::COLOR_GRAY2BGR);
 
 			for (const auto& p : points_[R][0])
@@ -274,26 +271,25 @@ namespace bs
 		if (cv::waitKey(delay) == 'q')
 			return false;
 
-		cam_ >> prev_im;
+		cam >> prev_im;
 		map_(prev_im, cv::INTER_LINEAR);
 		cv::cvtColor(prev_im[L], flow_view_im[L], cv::COLOR_GRAY2BGR);
 		cv::cvtColor(prev_im[R], flow_view_im[R], cv::COLOR_GRAY2BGR);
 
 		for (size_t i = 0; i < points_[L][0].size(); ++i)
-		{
-			cv::circle(flow_view_im[L], points_[L][0][i], draw_circle_radius,
-				cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_AA);
-			cv::circle(flow_view_im[R], points_[R][0][i], draw_circle_radius,
-				cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_AA);
-		}
+			cv::circle(flow_view_im[L], points_[L][0][i], draw_circle_radius, cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_AA);
+
+		for (size_t i = 0; i < points_[R][0].size(); ++i)
+			cv::circle(flow_view_im[R], points_[R][0][i], draw_circle_radius, cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_AA);
+
 		bs::imshow("left: flow", flow_view_im[L], view_sz);
 		bs::imshow("right: flow", flow_view_im[R], view_sz);
 		cv::waitKey(2);
 
 		if (sw_save_all_images && !out_dir_.empty())
 		{
-			bs::imwrite(out_dir_ + "camera/raw/cam_l0.png", prev_im[L], view_sz * 2);
-			bs::imwrite(out_dir_ + "camera/raw/cam_r0.png", prev_im[R], view_sz * 2);
+			bs::imwrite(out_dir_ + "camera/raw/cam_l0.png", prev_im[L]);
+			bs::imwrite(out_dir_ + "camera/raw/cam_r0.png", prev_im[R]);
 			bs::imwrite(out_dir_ + "camera/cam_flow_l0.png", flow_view_im[L], view_sz * 2);
 			bs::imwrite(out_dir_ + "camera/cam_flow_r0.png", flow_view_im[R], view_sz * 2);
 		}
@@ -305,7 +301,7 @@ namespace bs
 
 			if (cv::waitKey(delay) == 'q')
 				return false;
-			cam_ >> next_im;
+			cam >> next_im;
 			map_(next_im, cv::INTER_LINEAR);
 
 			cv::calcOpticalFlowPyrLK(prev_im[L], next_im[L],
@@ -320,28 +316,41 @@ namespace bs
 			cv::cvtColor(next_im[L], flow_view_im[L], cv::COLOR_GRAY2BGR);
 			cv::cvtColor(next_im[R], flow_view_im[R], cv::COLOR_GRAY2BGR);
 
-			for (size_t j = 0; j <= i; ++j)
-			{
-				for (size_t k = 0; k < points_[L][j].size(); ++k)
-				{
-					cv::circle(flow_view_im[L], points_[L][j][k], draw_circle_radius,
-						cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_AA);
-					cv::circle(flow_view_im[R], points_[R][j][k], draw_circle_radius,
-						cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_AA);
-				}
-			}
+			// Draw points
+			/// previous
+			for (size_t j = 0; j < points_[L][i - 1].size(); ++j)
+				cv::circle(flow_view_im[L], points_[L][i - 1][j], draw_circle_radius, cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_AA);
+			for (size_t j = 0; j < points_[R][i - 1].size(); ++j)
+				cv::circle(flow_view_im[R], points_[R][i - 1][j], draw_circle_radius, cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_AA);
+			/// current
+			for (size_t j = 0; j < points_[L][i].size(); ++j)
+				cv::circle(flow_view_im[L], points_[L][i][j], draw_circle_radius, cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_AA);
+			for (size_t j = 0; j < points_[R][i].size(); ++j)
+				cv::circle(flow_view_im[R], points_[R][i][j], draw_circle_radius, cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_AA);
+
+			//for (size_t j = 0; j <= i; ++j)
+			//{
+			//	for (size_t k = 0; k < points_[L][j].size(); ++k)
+			//	{
+			//		cv::circle(flow_view_im[L], points_[L][j][k], draw_circle_radius,
+			//			cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_AA);
+
+			//		if(k < points_.size())
+			//			cv::circle(flow_view_im[R], points_[R][j][k], draw_circle_radius,
+			//			cv::Scalar(0, 255, 0), cv::FILLED, cv::LINE_AA);
+			//	}
+			//}
 			bs::imshow("left: flow", flow_view_im[L], view_sz);
 			bs::imshow("right: flow", flow_view_im[R], view_sz);
 			cv::waitKey(2);
 
 			if (sw_save_all_images && !out_dir_.empty())
 			{
-				bs::imwrite(out_dir_ + "camera/raw/cam_l" + std::to_string(i) + ".png", prev_im[L], view_sz * 2);
-				bs::imwrite(out_dir_ + "camera/raw/cam_r" + std::to_string(i) + ".png", prev_im[R], view_sz * 2);
+				bs::imwrite(out_dir_ + "camera/raw/cam_l" + std::to_string(i) + ".png", prev_im[L]);
+				bs::imwrite(out_dir_ + "camera/raw/cam_r" + std::to_string(i) + ".png", prev_im[R]);
 				bs::imwrite(out_dir_ + "camera/cam_flow_l" + std::to_string(i) + ".png", flow_view_im[L], view_sz * 2);
 				bs::imwrite(out_dir_ + "camera/cam_flow_r" + std::to_string(i) + ".png", flow_view_im[R], view_sz * 2);
 			}
-
 			next_im[L].copyTo(prev_im[L]);
 			next_im[R].copyTo(prev_im[R]);
 		}
@@ -390,7 +399,7 @@ namespace bs
 				for (size_t k = 0; k < numof_computings; ++k)
 					flow[k] = src[lr][k][j];
 
-				if (bs__isGoodFlow(flow))
+				if (bs__isGoodFlow(flow, 30.0))
 					lut.push_back(j);
 			}
 			dst[lr].resize(numof_computings);
@@ -440,20 +449,19 @@ namespace bs
 		return;
 	}
 
-	std::vector<size_t> searchEpipolar(const OpticalFlow& src_flow, const std::vector<OpticalFlow>& target_flow_vec)
+	std::vector<OpticalFlow> searchEpipolar(const OpticalFlow& src_flow, const std::vector<OpticalFlow>& target_flow_vec)
 	{
-		std::vector<size_t> epipolar_indices;
-		epipolar_indices.reserve(target_flow_vec.size());
+		const cv::Point p0 = src_flow.point;
+		std::vector<OpticalFlow> epipolar_flows;
+		epipolar_flows.reserve(target_flow_vec.size());
 
-		for (size_t i = 0; i < target_flow_vec.size(); ++i)
+		for (const auto& flow : target_flow_vec)
 		{
-			const cv::Point p0 = src_flow.point;
-			const cv::Point p1 = target_flow_vec[i].point;
-
-			if (p0.y == p1.y)
-				epipolar_indices.push_back(i);
+			cv::Point p = cv::Point(flow.point);
+			if (p0.y == p.y)
+				epipolar_flows.push_back(flow);
 		}
-		return epipolar_indices;
+		return epipolar_flows;
 	}
 
 }
