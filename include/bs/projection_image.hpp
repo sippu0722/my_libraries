@@ -121,7 +121,7 @@ makeStripe(const cv::Size& size, const size_t stripe_width, const bool is_vertic
 	for (int i = 0; i < static_cast<int>(length); ++i)
 	{
 		const uchar value = (i % (stripe_width * 2) < stripe_width ? intensity_range.first : intensity_range.second);
-		(is_vertical ? im.col(i) : im.row(i)) = cv::Scalar::all(value);
+		(is_vertical ? im.col(i) : im.row(i)) = cv::Scalar(value);
 	}
 	return im;
 }
@@ -165,7 +165,7 @@ makeRandomStripe(const cv::Size& size, const bool is_vertical,
 		count += static_cast<uint>(w_curr);
 		range.end = static_cast<int>(std::min(static_cast<size_t>(count), length));
 		(is_vertical ? im.colRange(range) : im.rowRange(range)) =
-			cv::Scalar::all(draw_brack ? intensity_range.first : intensity_range.second);
+			cv::Scalar(draw_brack ? intensity_range.first : intensity_range.second);
 		draw_brack = !draw_brack;
 	}
 	return im;
@@ -270,7 +270,7 @@ bs__makeSinWave(cv::InputOutputArray image, const uint numof_wave,
 		const uchar value = static_cast<uchar>(bright * std::sin(angle_frequency + initial_phase) + offset);
 		
 		const int i_ = static_cast<int>(i);
-		(is_horizontal ? img.col(i_) : img.row(i_)) = cv::Scalar::all(value);
+		(is_horizontal ? img.col(i_) : img.row(i_)) = cv::Scalar(value);
 	}
 	//img.copyTo(image);
 	return;
