@@ -7,6 +7,8 @@
 #include <opencv2/imgproc.hpp>
 #pragma warning(default:4819)
 
+#include <bs/stereo_util.hpp>
+
 namespace bs
 {
 

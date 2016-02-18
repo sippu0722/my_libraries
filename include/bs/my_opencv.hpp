@@ -4,6 +4,7 @@
 
 #pragma warning(disable:4819)
 #include <opencv2/opencv.hpp>
+#include <opencv2/flann/timer.h>
 #pragma warning(default:4819)
 
 namespace bs
