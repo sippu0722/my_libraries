@@ -53,20 +53,15 @@ namespace bs
 			const bool _is_positional = false) :
 			default_value_str(_defalt_val), description(_description), is_positional(_is_positional)
 		{
-			option = (is_positional ? "@" : "") + _option;
-		}
-
-		CmdlineParserKey(const std::vector<std::string>& _options,
-			const std::string& _defalt_val,
-			const std::string& _description,
-			const bool _is_positional = false) :
-			default_value_str(_defalt_val),
-			description(_description), is_positional(_is_positional)
-		{
-			option = (is_positional ? "@" : "") +
-				std::accumulate(_options.cbegin(), _options.cend(), std::string(),
-				[](const std::string& a, const std::string& b)
-			{ return (a + " " + b); });
+			if (_option[0] == '@')
+			{
+				is_positional = true;
+				option = _option.substr(0, _option.find(' '));
+			}
+			else if (is_positional)
+				option = (_option[0] == '@' ? "" : "@") + _option.substr(0, _option.find(' '));
+			else
+				option = _option;
 		}
 	};
 }

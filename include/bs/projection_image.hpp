@@ -38,7 +38,7 @@ namespace proj
 
 inline cv::Mat
 makeRandomDot(const cv::Size& size, const size_t dot_size,
-			  const std::pair<uchar, uchar> intensity_range = { 0u, 255u },
+			  const std::pair<uint8_t, uint8_t> intensity_range = { 0u, 255u },
 			  const std::pair<double, double> weight = { 1., 1. }) 
 {
 	cv::Mat im;
@@ -50,7 +50,7 @@ makeRandomDot(const cv::Size& size, const size_t dot_size,
 	// In case of waighted pattern
 	if (!weighted_pattern)
 	{
-		const uchar min = r.first, max = r.second;
+		const uint8_t min = r.first, max = r.second;
 
 		im = cv::Mat(size, CV_8U);
 		cv::randu(im, 0, 2);
@@ -67,7 +67,7 @@ makeRandomDot(const cv::Size& size, const size_t dot_size,
 
 	std::random_device rd;
 	std::mt19937 mt(rd());
-	std::vector<uchar> vec_r(2);
+	std::vector<uint8_t> vec_r(2);
 	std::vector<double> vec_w(2);
 
 	im = cv::Mat(size, CV_8U);
@@ -86,7 +86,7 @@ makeRandomDot(const cv::Size& size, const size_t dot_size,
 #pragma omp parallel for
 	for (int row = 0; row < im.rows; ++row)
 	{
-		uchar *ptr = im.ptr<uchar>(row);
+		auto *ptr = im.ptr<uchar>(row);
 
 		for (int col = 0; col < im.cols; ++col)
 			ptr[col] = vec_r[generator(mt)];
@@ -102,7 +102,7 @@ makeRandomDot(const cv::Size& size, const size_t dot_size,
 
 inline cv::Mat
 makeRandomDot(const size_t rows, const size_t cols, const size_t dot_size,
-	const std::pair<uchar, uchar> intensity_range = { 0u, 255u },
+	const std::pair<uint8_t, uint8_t> intensity_range = { 0u, 255u },
 	const std::pair<double, double> weight = { 1., 1. })
 {
 	const cv::Size sz(static_cast<int>(cols), static_cast<int>(rows));
@@ -112,7 +112,7 @@ makeRandomDot(const size_t rows, const size_t cols, const size_t dot_size,
 
 inline cv::Mat
 makeStripe(const cv::Size& size, const size_t stripe_width, const bool is_vertical,
-		   const std::pair<uchar, uchar> intensity_range = { 0u, 255u })
+		   const std::pair<uint8_t, uint8_t> intensity_range = { 0u, 255u })
 {
 	cv::Mat im(size, CV_8U);
 	const size_t length = static_cast<size_t>(is_vertical ? size.width : size.height);
@@ -120,7 +120,7 @@ makeStripe(const cv::Size& size, const size_t stripe_width, const bool is_vertic
 #pragma omp parallel for
 	for (int i = 0; i < static_cast<int>(length); ++i)
 	{
-		const uchar value = (i % (stripe_width * 2) < stripe_width ? intensity_range.first : intensity_range.second);
+		const uint8_t value = (i % (stripe_width * 2) < stripe_width ? intensity_range.first : intensity_range.second);
 		(is_vertical ? im.col(i) : im.row(i)) = cv::Scalar(value);
 	}
 	return im;
@@ -143,7 +143,7 @@ makeStripe(const size_t rows, const size_t cols, const size_t stripe_width,
 inline cv::Mat
 makeRandomStripe(const cv::Size& size, const bool is_vertical,
 				 const std::pair<uint, uint> width_range = { 1u, 1u },
-				 const std::pair<uchar, uchar> intensity_range = { 0u, 255u })
+				 const std::pair<uint8_t, uint8_t> intensity_range = { 0u, 255u })
 {
 	const auto w = bs__sortPairGreater(width_range);
 	const size_t length = static_cast<size_t>(is_vertical ? size.height : size.width);
@@ -174,7 +174,7 @@ makeRandomStripe(const cv::Size& size, const bool is_vertical,
 inline cv::Mat
 makeRandomStripe(const size_t rows, const size_t cols, const bool is_vertical,
 				 const std::pair<uint, uint> width_range = { 1u, 1u },
-				 const std::pair<uchar, uchar> intensity_range = { 0u, 255u })
+				 const std::pair<uint8_t, uint8_t> intensity_range = { 0u, 255u })
 {
 	const cv::Size sz(static_cast<int>(cols), static_cast<int>(rows));
 	return makeRandomStripe(sz, is_vertical, width_range, intensity_range);
@@ -186,7 +186,7 @@ makeSinPattern(cv::OutputArrayOfArrays projection_h,
 			   cv::OutputArrayOfArrays projection_v,
 			   const cv::Size& prj_sz, const uint numof_step,
 			   const std::vector<uint> waves,
-			   const std::pair<uchar, uchar> intensity_range = { 0u, 255u })
+			   const std::pair<uint8_t, uint8_t> intensity_range = { 0u, 255u })
 {
 	assert(!waves.empty() && 0 < numof_step);
 
@@ -228,7 +228,7 @@ showWindowNoframe(cv::InputArray image, const cv::Point2i& window_pos,
 	cv::imshow(win_name, image);
 	unsigned int win_flags = (SWP_SHOWWINDOW | SWP_NOSIZE);
 	cv::setWindowProperty(win_name, cv::WINDOW_FULLSCREEN, cv::WINDOW_FULLSCREEN);
-	HWND win_handle = FindWindow(0, win_name.c_str());
+	HWND win_handle = FindWindowA(0, win_name.c_str());
 	SetWindowPos(win_handle, HWND_NOTOPMOST, window_pos.x, window_pos.y, image.getMat().cols, image.getMat().rows, win_flags);
 	SetWindowLong(win_handle, GWL_STYLE, GetWindowLong(win_handle, GWL_EXSTYLE) | WS_EX_TOPMOST);
 	ShowWindow(win_handle, SW_SHOW);
@@ -261,16 +261,16 @@ bs__makeSinWave(cv::InputOutputArray image, const uint numof_wave,
 	cv::Mat img = image.getMat();
 	const double bright = (max - min) / 2.;
 	const double offset = (max + min) / 2.;
-	const size_t wave_length = static_cast<size_t>((is_horizontal ? img.cols : img.rows) / numof_wave);
+	const size_t wave_length = static_cast<size_t>((is_horizontal ? img.rows : img.cols) / numof_wave);
 
-	for (size_t i = 0; i < static_cast<size_t>(is_horizontal ? img.cols : img.rows); ++i)
+	for (size_t i = 0; i < static_cast<size_t>(is_horizontal ? img.rows : img.cols); ++i)
 	{
 		const double initial_phase = (2 * std::_Pi / numof_step) * numof_step_current;
 		const double angle_frequency = 2 * std::_Pi * i / wave_length;
-		const uchar value = static_cast<uchar>(bright * std::sin(angle_frequency + initial_phase) + offset);
+		const uint8_t value = static_cast<uint8_t>(bright * std::sin(angle_frequency + initial_phase) + offset);
 		
 		const int i_ = static_cast<int>(i);
-		(is_horizontal ? img.col(i_) : img.row(i_)) = cv::Scalar(value);
+		(is_horizontal ? img.row(i_) : img.col(i_)) = cv::Scalar(value);
 	}
 	//img.copyTo(image);
 	return;
