@@ -889,7 +889,7 @@ namespace bs
 		return key;
 	}
 
-	void CameraController::savePropToFile(const std::string& file_param)
+	inline void CameraController::savePropToFile(const std::string& file_param)
 	{
 		const std::string file = (!file_param.empty() ? file_param : !file_param_.empty() ? file_param_ : "");
 		if (file.empty())	return;
