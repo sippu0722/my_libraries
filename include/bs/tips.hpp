@@ -5,6 +5,14 @@
 #include <sstream>
 #include <vector>
 #include <string>
+#include <numeric>
+
+
+template<class T = void>
+void impl__strcat(std::stringstream& ss) {}
+
+template<class T, class... Ts>
+void impl__strcat(std::stringstream& ss, T value, Ts... args);
 
 
 namespace bs
@@ -19,21 +27,37 @@ namespace bs
 		static std::vector<int> read(const std::string& filename);
 	};
 
-
 	template<typename T = double>
-	std::vector<T> linspace(const T a, const T b, size_t n)
-	{
-		const T h = (b - a) / static_cast<T>(n - 1);
-		
-		std::vector<T> res(n);
-		res[0] = a;
+	std::vector<T> linspace(const T a, const T b, size_t n);
 
-		for (auto& it = res.begin() + 1; it != res.end(); ++it)
-			*it = *(it - 1) + h;
-		return res;
+	template<class... Ts>
+	std::string strcat(Ts... args);
+
+	/*!
+	return pair is {mean, sigma}
+	*/
+	inline std::pair<double, double>
+	calcMeanSigma(const std::vector<double>& data)
+	{
+		const double n = (double)data.size();
+		double mean = 0.;
+		double sigma = 0.;
+
+		for (const auto& d : data)
+		{
+			mean += d;
+			sigma += std::pow(d, 2.);
+		}
+		mean /= n;
+		sigma = std::sqrt(sigma / n - std::pow(mean, 2.));
+
+		return std::make_pair(mean, sigma);
 	}
 
-///////
+	template<typename T, typename U>
+	std::pair<T, U> sortPairGreater(const std::pair<T, U>& p);
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	inline std::vector<int> IndexReader::read(const std::string& filename)
 	{
@@ -103,6 +127,48 @@ namespace bs
 		std::getline(iss, s2, '-');
 
 		const int i1 = std::stoi(s1), i2 = std::stoi(s2);
-		return linspace<int>(i1, i2, i2 - i1 + 1);
+		std::vector<int> i_vec(i2 - i1 + 1);
+		std::iota(i_vec.begin(), i_vec.end(), i1);
+		return i_vec;
 	}
+
+
+	template<typename T>
+	inline std::vector<T> linspace(const T a, const T b, size_t n)
+	{
+		std::vector<T> res(n);
+		std::iota(res.begin(), res.end(), a);
+		return res;
+	}
+
+	template<class... Ts>
+	std::string strcat(Ts... args)
+	{
+		std::stringstream ss;
+		impl__strcat(ss, args...);
+
+		std::string str(ss.str());
+		str.erase(str.end() - 1, str.end());
+		return str;
+	}
+
+	template<typename T, typename U>
+	inline std::pair<T, U> sortPairGreater(const std::pair<T, U>& p)
+	{
+		if (p.first < p.second)	return p;
+		else
+		{
+			const T fi = static_cast<T>(p.second);
+			const U se = static_cast<U>(p.first);
+			return std::make_pair(fi, se);
+		}
+	}
+}
+
+
+template<class T, class... Ts>
+void impl__strcat(std::stringstream& ss, T value, Ts... args)
+{
+	ss << value << "_";
+	impl__strcat(ss, args...);
 }

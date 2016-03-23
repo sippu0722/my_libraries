@@ -5,10 +5,10 @@
 #include <boost/filesystem.hpp>
 
 #include <bs/path.h>
-#include <bs/my_opencv.hpp>
+#include <bs/cv_tips.hpp>
 #include <bs/camera_controller2.hpp>
-#include <bs/projection_image.hpp>
 #include <bs/rectify_remap.hpp>
+#include <bs/show_noframe.hpp>
 
 
 bool bs__isGoodFlow(const std::vector<cv::Point2f>& flow, const double ang_th = 5);
@@ -36,6 +36,7 @@ namespace bs
 		Stereo<std::vector<std::vector<cv::Point2f>>> points_;
 		Stereo<size_t> numof_pixels_;
 		size_t numof_computings_;
+		cv::Point prj_pos_;
 
 	public:
 		bs::StereoCameraController cam;
@@ -70,7 +71,7 @@ namespace bs
 							const Stereo<cv::Mat>& mask = bs::make_Stereo(cv::Mat(), cv::Mat()));
 		void detectFeatures(Stereo<cv::Mat>& draw_image, const Stereo<cv::Rect>& roi);
 
-		void setProjectionImages(cv::InputArrayOfArrays images);
+		void setProjectionImages(cv::InputArrayOfArrays images, const cv::Point& prj_pos);
 
 		bool compute();
 
@@ -141,7 +142,7 @@ namespace bs
 		if (!map_.load(kDirCalib))
 			return false;
 
-		if (!cam.initFromFile(kFileCamParam))
+		if (!cam.initFromFile(kDirCalib + "scam_param_flowmatch.xml"))
 			return false;
 
 		view_sz = cam.calcViewSize(view_width)[L];
@@ -161,8 +162,9 @@ namespace bs
 		return;
 	}
 
-	inline void OpticalFlowApp::setProjectionImages(cv::InputArrayOfArrays images)
+	inline void OpticalFlowApp::setProjectionImages(cv::InputArrayOfArrays images, const cv::Point& prj_pos)
 	{
+		prj_pos_ = prj_pos;
 		images.getMatVector(prj_ims_);
 
 		if (sw_save_all_images && !out_dir_.empty())
@@ -174,7 +176,7 @@ namespace bs
 
 		if (points_[L].empty() || points_[R].empty())
 			resizePoints(prj_ims_.size());
-		bs::showWindowNoframe(prj_ims_[0], cv::Point(2560, -prj_ims_[0].rows));
+		bs::showWindowNoframe(prj_ims_[0], prj_pos_);
 		cv::waitKey(2);
 		return;
 	}
@@ -187,14 +189,15 @@ namespace bs
 		const int w = cam.getSize()[L].width, h = cam.getSize()[L].height;
 		Stereo<cv::Mat> im, msk;
 
-		bs::showWindowNoframe(prj_ims_[0], cv::Point(2560, -prj_ims_[0].rows));
-		cv::waitKey(delay * 100);
+		bs::showWindowNoframe(prj_ims_[0], prj_pos_);
+		cv::waitKey(delay);
 
+		cam >> im;
 		cam >> im;
 		map_(im, cv::INTER_LINEAR);
 
 		cv::Mat flow_direc_mask = cv::Mat::zeros(im[L].size(), CV_8U);
-		flow_direc_mask(cv::Rect(1000, 0, im[L].cols - 1000, im[L].rows)) = 1;
+		flow_direc_mask(cv::Rect(300, 300, im[L].cols - 600, im[L].rows - 600)) = 1;
 
 		msk[L] = mask[L].empty() ? cv::Mat::ones(im[L].size(), CV_8U) : mask[L];
 		cv::bitwise_and(msk[L], flow_direc_mask, msk[L]);
@@ -215,6 +218,8 @@ namespace bs
 					for (int c = col; c < std::min(col + 512, msk[R].cols); ++c)	r_ptr[c] = 1;
 			}
 		}
+		cv::bitwise_and(msk[R], (mask[R].empty() ? cv::Mat::ones(msk[R].size(), CV_8U) : mask[R]), msk[R]);
+		cv::bitwise_and(msk[R], flow_direc_mask, msk[R]);
 
 #pragma omp parallel sections
 		{
@@ -266,7 +271,7 @@ namespace bs
 		std::vector<uchar> status;
 		std::vector<float> errors;
 
-		bs::showWindowNoframe(prj_ims_[0], cv::Point(2560, -prj_ims_[0].rows));
+		bs::showWindowNoframe(prj_ims_[0],prj_pos_);
 
 		if (cv::waitKey(delay) == 'q')
 			return false;
@@ -297,7 +302,7 @@ namespace bs
 		for (size_t i = 1; i < prj_ims_.size(); ++i)
 		{
 
-			bs::showWindowNoframe(prj_ims_[i], cv::Point(2560, -prj_ims_[i].rows));
+			bs::showWindowNoframe(prj_ims_[i], prj_pos_);
 
 			if (cv::waitKey(delay) == 'q')
 				return false;
@@ -439,7 +444,7 @@ namespace bs
 				y = to.y - from.y;
 				mag = std::sqrt(x * x + y * y);
 				ang = std::atan2(y, x);
-				ang *= (180.0 / std::_Pi);	// rad -> deg
+				ang *= (180.0 / CV_PI);	// rad -> deg
 
 				dst_flow[lr][i].point = from;
 				dst_flow[lr][i].magnitude = mag;
@@ -477,7 +482,7 @@ bool bs__isGoodFlow(const std::vector<cv::Point2f>& flow, const double ang_th)
 		const double y = it->y - (it - 1)->y;
 
 		double ang = std::atan2(y, x);
-		ang *= (180.0 / std::_Pi);	// radian to degree
+		ang *= (180.0 / CV_PI);	// radian to degree
 
 		double tmp = ang - prev_ang;
 		double ang_diff = 180 < tmp ? tmp - 360.0 : tmp < -180 ? tmp + 360.0 : tmp;
